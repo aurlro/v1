@@ -1,5 +1,26 @@
 'use strict';
 
+// 🛡️ GLOBAL SAFETY NET (Error Boundary)
+// Capture les erreurs critiques pour éviter l'écran blanc
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    if (msg.includes('ResizeObserver')) return false; // Ignorer erreurs bénignes
+    console.error('🔥 CRASH DETECTED:', { msg, error });
+    
+    // Essayer d'utiliser le toast système si disponible
+    if (window.app?.toast) {
+        window.app.toast.error(`Erreur système : ${msg}. Tentez de rafraîchir.`);
+    }
+    return false;
+};
+
+window.onunhandledrejection = function(event) {
+    console.error('🔥 ASYNC ERROR:', event.reason);
+    // Feedback utilisateur uniquement si c'est critique (pas une annulation)
+    if (window.app?.toast && event.reason?.name !== 'AbortError') {
+        console.warn('Opération en arrière-plan échouée');
+    }
+};
+
 const STORAGE_KEYS = {
     theme: 'boite-outils-theme',
     lastPage: 'boite-outils-last-page',
@@ -45,28 +66,6 @@ Format de réponse STRICT : JSON avec les clés suivantes :
     { "objective": "Objectif stratégique", "script": "Script complet, ton validant" }
   ]
 }`;
-
-'use strict';
-
-// 🛡️ GLOBAL SAFETY NET (Error Boundary)
-window.onerror = function(msg, url, lineNo, columnNo, error) {
-    if (msg.includes('ResizeObserver')) return false; // Ignorer erreurs bénignes
-    console.error('🔥 CRASH DETECTED:', { msg, error });
-    
-    // Essayer d'utiliser le toast système si disponible
-    if (window.app?.toast) {
-        window.app.toast.error(`Erreur système : ${msg}. Tentez de rafraîchir.`);
-    }
-    return false;
-};
-
-window.onunhandledrejection = function(event) {
-    console.error('🔥 ASYNC ERROR:', event.reason);
-    // Feedback utilisateur uniquement si c'est critique (pas une annulation)
-    if (window.app?.toast && event.reason?.name !== 'AbortError') {
-        console.warn('Opération en arrière-plan échouée');
-    }
-};
 
 document.addEventListener('DOMContentLoaded', () => {
     const body = document.body;
@@ -501,51 +500,50 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Modules & Stores ---
 
+// 🔥 MODULE AMÉLIORÉ : Analyse Manuelle (Autosave + Validation)
 function createManualAnalyzer({ rootId, store, toast, onSaved }) {
     const root = document.getElementById(rootId);
     if (!root) return { render: () => {} };
 
     const AUTOSAVE_KEY = 'boite-outils-manual-draft';
     
-    // ... (Les définitions egoOptions et steps restent identiques) ...
-    // Pour économiser de l'espace ici, je ne répète pas egoOptions et steps 
-    // s'ils sont déjà dans votre code, gardez-les tels quels.
     const egoOptions = ["La Défensive", "Le Sauveur", "Le Martyr", "Le Dernier Mot", "Le Refus d'influence"];
-    const steps = [ /* ... Gardez vos steps existants ... */ 
+    
+    const steps = [
         {
             id: 'context',
             title: '1. Constat',
             description: 'Capture le contexte brut avant de le re-écrire ou le juger.',
             fields: [
-                { name: 'context', label: 'Qu’est-ce qui s’est passé ?', type: 'textarea', placeholder: "Décris la scène...", required: true },
-                { name: 'partnerSignal', label: 'Quel a été le signal / trigger ?', type: 'textarea', placeholder: 'Phrase, regard...', required: true },
+                { name: 'context', label: 'Qu’est-ce qui s’est passé ?', type: 'textarea', placeholder: "Décris la scène telle qu'elle s'est déroulée...", required: true },
+                { name: 'partnerSignal', label: 'Quel a été le signal / trigger ?', type: 'textarea', placeholder: 'Phrase, regard, ton de voix...', required: true },
             ]
         },
         {
             id: 'ego',
             title: '2. Ego Radar',
-            description: "Identifie l'ego dominant.",
+            description: "Identifie l'ego dominant pour pouvoir le désamorcer.",
             fields: [
                 { name: 'egoFocus', label: "Quel type d'ego s'est activé ?", type: 'select', options: egoOptions, required: true },
-                { name: 'triggerNeed', label: 'Quel besoin personnel n’a pas été nourri ?', type: 'textarea', placeholder: 'Reconnaissance, sécurité...', required: true },
+                { name: 'triggerNeed', label: 'Quel besoin personnel n’a pas été nourri ?', type: 'textarea', placeholder: 'Reconnaissance, soutien, sécurité...', required: true },
             ]
         },
         {
             id: 'response',
             title: '3. MVP de réponse',
-            description: 'La réponse idéale.',
+            description: 'Dessine la réponse que tu aurais aimé livrer.',
             fields: [
-                { name: 'alternativeResponse', label: 'Quelle réponse MVP veux-tu tester ?', type: 'textarea', placeholder: 'Réponse idéale...', required: true },
+                { name: 'alternativeResponse', label: 'Quelle réponse MVP veux-tu tester ?', type: 'textarea', placeholder: 'Rédige la réponse idéale...', required: true },
                 { name: 'validation', label: 'Comment valider sa frustration ?', type: 'textarea', placeholder: "Ex: “Je comprends que tu...”", required: true },
             ]
         },
         {
             id: 'action',
             title: '4. Action & Insight',
-            description: 'La suite.',
+            description: 'Programme la suite et capture l’enseignement clé.',
             fields: [
-                { name: 'actionPlan', label: 'Plan d’action concret ?', type: 'textarea', placeholder: 'Message à envoyer...', required: true },
-                { name: 'insight', label: 'Insight clé ?', type: 'textarea', placeholder: 'Le bug racine...', required: false },
+                { name: 'actionPlan', label: 'Quel est ton plan d’action concret ?', type: 'textarea', placeholder: 'Message à envoyer, rituel à planifier...', required: true },
+                { name: 'insight', label: 'Insight clé à retenir ?', type: 'textarea', placeholder: 'Le bug racine, l’alerte à surveiller...', required: false },
             ]
         }
     ];
@@ -558,17 +556,17 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         },
     };
 
-    // 🔄 RESTAURATION BROUILLON
+    // 🔄 RESTAURATION BROUILLON (Auto-restore)
     function restoreDraft() {
         try {
             const draft = sessionStorage.getItem(AUTOSAVE_KEY);
             if (draft) {
                 const parsed = JSON.parse(draft);
-                // Valide seulement si moins de 24h
+                // Restaure seulement si le brouillon a moins de 24h
                 if (Date.now() - parsed.timestamp < 86400000) {
                     state.values = { ...state.values, ...parsed.values };
                     state.stepIndex = parsed.stepIndex || 0;
-                    toast.info('📝 Brouillon restauré.');
+                    toast.info('📝 Brouillon restauré automatiquement.');
                 }
             }
         } catch (e) { console.debug('Pas de brouillon'); }
@@ -580,12 +578,12 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         if (delegatedListenerAttached) return;
         delegatedListenerAttached = true;
 
-        // Input + Autosave
+        // Input Delegation + Autosave
         root.addEventListener('input', (event) => {
             const target = event.target;
             if (!target.name) return;
             
-            // Retirer la classe d'erreur quand l'utilisateur tape
+            // Enlever la classe d'erreur visuelle si l'utilisateur commence à taper
             if (target.classList.contains('invalid')) {
                 target.classList.remove('invalid');
             }
@@ -594,7 +592,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
 
             if (target.tagName === 'TEXTAREA') autoResizeTextarea(target);
 
-            // 💾 SAUVEGARDE AUTO
+            // 💾 SAUVEGARDE AUTO (SessionStorage)
             sessionStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
                 values: state.values,
                 stepIndex: state.stepIndex,
@@ -602,7 +600,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
             }));
         });
 
-        // Navigation
+        // Navigation Buttons Delegation
         root.addEventListener('click', (event) => {
             const button = event.target.closest('button[data-action]');
             if (!button) return;
@@ -629,7 +627,6 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         const currentStep = steps[state.stepIndex];
         if (!currentStep) return;
 
-        // Rendu HTML (inchangé sauf pour l'appel renderField)
         root.innerHTML = `
             <div class="space-y-8">
                 <header class="space-y-2">
@@ -649,7 +646,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
                 </div>
 
                 <form id="manual-form" class="space-y-6">
-                    <h3 class="text-xl font-semibold">${currentStep.title}</h3>
+                    <h3 class="text-xl font-semibold text-slate-800 dark:text-slate-200">${currentStep.title}</h3>
                     <p class="text-sm text-slate-500 mb-4">${currentStep.description}</p>
                     ${currentStep.fields.map(field => renderField(field, state.values[field.name] || '')).join('')}
                 </form>
@@ -671,8 +668,10 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
     }
 
     function renderField(field, value) {
+        // Ajout de l'attribut data-required pour le CSS
         const reqAttr = field.required ? 'data-required="true"' : '';
-        const commonClasses = "form-input w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 transition-all";
+        // Classes communes
+        const commonClasses = "form-input w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none";
         
         let inputHtml = '';
         if (field.type === 'select') {
@@ -687,9 +686,9 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         }
 
         return `
-            <div class="form-group">
-                <label for="${field.name}" class="form-label font-medium block mb-2" ${reqAttr}>
-                    ${field.label}
+            <div class="form-group mb-4">
+                <label for="${field.name}" class="form-label font-medium block mb-2 text-slate-700 dark:text-slate-300" ${reqAttr}>
+                    ${escapeHTML(field.label)}
                 </label>
                 ${inputHtml}
             </div>
@@ -703,11 +702,12 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         let firstError = null;
 
         currentStep.fields.forEach(field => {
+            // Vérifie si champ requis est vide
             if (field.required && !state.values[field.name]?.trim()) {
                 isValid = false;
                 const el = root.querySelector(`[name="${field.name}"]`);
                 if (el) {
-                    el.classList.add('invalid'); // Déclenche l'animation CSS
+                    el.classList.add('invalid'); // Déclenche l'animation CSS 'shake'
                     if (!firstError) firstError = el;
                 }
             }
@@ -721,7 +721,6 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
     }
 
     function validateAllSteps() {
-        // Validation finale simple (normalement déjà validée par steps)
         return validateCurrentStep(); 
     }
 
@@ -736,8 +735,8 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
 
         const result = store.saveEntry(entry);
         if (result.success) {
-            toast.success('Analyse sauvegardée.');
-            // 🧹 NETTOYAGE
+            toast.success('Analyse sauvegardée avec succès.');
+            // 🧹 NETTOYAGE: On supprime le brouillon après sauvegarde réussie
             sessionStorage.removeItem(AUTOSAVE_KEY);
             resetState();
             render();
@@ -751,338 +750,6 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         state.stepIndex = 0;
         Object.keys(state.values).forEach(key => state.values[key] = '');
     }
-    
-    // Initialisation
-    restoreDraft();
-    render(); // Premier rendu
-    
-    return { render };
-}
-const root = document.getElementById(rootId);
-    if (!root) {
-        console.warn(`Racine manuelle "${rootId}" introuvable.`);
-        return { render: () => {} };
-    }
-
-    const egoOptions = [
-        "La Défensive",
-        "Le Sauveur",
-        "Le Martyr",
-        "Le Dernier Mot",
-        "Le Refus d'influence",
-    ];
-
-    const steps = [
-        {
-            id: 'context',
-            title: '1. Constat',
-            description: 'Capture le contexte brut avant de le re-écrire ou le juger.',
-            fields: [
-                {
-                    name: 'context',
-                    label: 'Qu’est-ce qui s’est passé ?',
-                    type: 'textarea',
-                    placeholder:
-                        "Décris la scène telle qu'elle s'est déroulée, sans interprétation.",
-                    required: true,
-                },
-                {
-                    name: 'partnerSignal',
-                    label: 'Quel a été le signal / trigger de ton partenaire ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Phrase, regard, ton de voix, silence... Note ce qui t’a percuté.',
-                    required: true,
-                },
-            ],
-        },
-        {
-            id: 'ego',
-            title: '2. Ego Radar',
-            description:
-                "Identifie l'ego dominant pour pouvoir le désamorcer lors de la prochaine itération.",
-            fields: [
-                {
-                    name: 'egoFocus',
-                    label: "Quel type d'ego s'est activé ?",
-                    type: 'select',
-                    options: egoOptions,
-                    required: true,
-                },
-                {
-                    name: 'triggerNeed',
-                    label: 'Quel besoin personnel n’a pas été nourri ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Reconnaissance, soutien, sécurité, clarté... note-le en mode backlog.',
-                    required: true,
-                },
-            ],
-        },
-        {
-            id: 'response',
-            title: '3. MVP de réponse',
-            description:
-                'Dessine la réponse que tu aurais aimé livrer, validation comprise.',
-            fields: [
-                {
-                    name: 'alternativeResponse',
-                    label: 'Quelle réponse MVP veux-tu tester ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Rédige la réponse idéale (ton, structure, validation, plan).',
-                    required: true,
-                },
-                {
-                    name: 'validation',
-                    label: 'Comment valider sa frustration en une phrase ?',
-                    type: 'textarea',
-                    placeholder:
-                        "Ex: “Je comprends que tu... et c'est logique que ça te...”",
-                    required: true,
-                },
-            ],
-        },
-        {
-            id: 'action',
-            title: '4. Action & Insight',
-            description: 'Programme la suite et capture l’enseignement clé.',
-            fields: [
-                {
-                    name: 'actionPlan',
-                    label: 'Quel est ton plan d’action concret ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Roadmap courte : message à envoyer, rituel à planifier, limite à poser...',
-                    required: true,
-                },
-                {
-                    name: 'insight',
-                    label: 'Insight clé à retenir pour la prochaine fois ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Le bug racine, l’alerte à surveiller, la ressource qui t’a aidé...',
-                    required: false,
-                },
-            ],
-        },
-    ];
-
-    const state = {
-        stepIndex: 0,
-        values: {
-            context: '',
-            partnerSignal: '',
-            egoFocus: '',
-            triggerNeed: '',
-            alternativeResponse: '',
-            validation: '',
-            actionPlan: '',
-            insight: '',
-        },
-    };
-
-    let delegatedListenerAttached = false;
-
-    function attachDelegatedListeners() {
-        // 🟠 MEMORY LEAK FIX: Attach event listeners once, use event delegation
-        if (delegatedListenerAttached) return;
-        delegatedListenerAttached = true;
-
-        // Delegate form input changes
-        root.addEventListener('input', (event) => {
-            const target = event.target;
-            if (!target.name) return;
-            state.values[target.name] = target.value;
-
-            // Auto-resize textareas on input
-            if (target.tagName === 'TEXTAREA') {
-                autoResizeTextarea(target);
-            }
-        });
-
-        // Delegate button clicks using event.target.dataset.action
-        root.addEventListener('click', (event) => {
-            const button = event.target.closest('button[data-action]');
-            if (!button) return;
-
-            const action = button.getAttribute('data-action');
-            switch (action) {
-                case 'prev':
-                    if (state.stepIndex > 0) {
-                        state.stepIndex -= 1;
-                        render();
-                    }
-                    break;
-                case 'next':
-                    if (!validateCurrentStep()) return;
-                    if (state.stepIndex < steps.length - 1) {
-                        state.stepIndex += 1;
-                        render();
-                    }
-                    break;
-                case 'save':
-                    if (!validateAllSteps()) return;
-                    saveEntry();
-                    break;
-            }
-        });
-    }
-
-    function render() {
-        const currentStep = steps[state.stepIndex];
-        if (!currentStep) return;
-
-        root.innerHTML = `
-            <div class="space-y-8">
-                <header class="space-y-2">
-                    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Analyse Manuelle</h2>
-                    <p class="text-slate-600 dark:text-slate-400">
-                        Transforme ta dernière crise en métrique actionnable. 4 étapes, zero juge, 100% introspection produit.
-                    </p>
-                </header>
-
-                <div class="stepper">
-                    ${steps
-                        .map((step, index) => {
-                            const isActive = index === state.stepIndex;
-                            return `
-                                <div class="stepper-item ${isActive ? 'active' : ''}">
-                                    <span class="stepper-index">${index + 1}</span>
-                                    <div class="font-semibold">${step.title}</div>
-                                    <p class="text-sm text-slate-500 dark:text-slate-400">${step.description}</p>
-                                </div>
-                            `;
-                        })
-                        .join('')}
-                </div>
-
-                <form id="manual-form" class="space-y-6">
-                    ${currentStep.fields
-                        .map((field) => renderField(field, state.values[field.name] || ''))
-                        .join('')}
-                </form>
-
-                <div class="wizard-actions">
-                    <button type="button" class="secondary-button" data-action="prev" ${state.stepIndex === 0 ? 'disabled' : ''}>
-                        ← Retour
-                    </button>
-                    <div class="flex gap-3">
-                        ${
-                            state.stepIndex < steps.length - 1
-                                ? `<button type="button" class="primary-button" data-action="next">
-                                        Étape suivante →
-                                   </button>`
-                                : `<button type="button" class="primary-button" data-action="save">
-                                        Sauvegarder l'analyse
-                                   </button>`
-                        }
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Initial textarea auto-resize
-        root.querySelectorAll('textarea').forEach((textarea) => {
-            autoResizeTextarea(textarea);
-        });
-
-        attachDelegatedListeners();
-    }
-
-    function renderField(field, value) {
-        if (field.type === 'select') {
-            return `
-                <div class="form-group">
-                    <label for="${field.name}">${field.label}${field.required ? ' *' : ''}</label>
-                    <select id="${field.name}" name="${field.name}">
-                        <option value="">Sélectionne une option</option>
-                        ${field.options
-                            .map(
-                                (option) =>
-                                    `<option value="${option}" ${
-                                        option === value ? 'selected' : ''
-                                    }>${option}</option>`,
-                            )
-                            .join('')}
-                    </select>
-                    ${
-                        field.helper
-                            ? `<p class="helper-text">${field.helper}</p>`
-                            : ''
-                    }
-                </div>
-            `;
-        }
-
-        return `
-            <div class="form-group">
-                <label for="${field.name}">${field.label}${field.required ? ' *' : ''}</label>
-                <textarea id="${field.name}" name="${field.name}" placeholder="${field.placeholder || ''}">${value || ''}</textarea>
-                ${
-                    field.helper
-                        ? `<p class="helper-text">${field.helper}</p>`
-                        : ''
-                }
-            </div>
-        `;
-    }
-
-    function validateCurrentStep() {
-        const currentStep = steps[state.stepIndex];
-        const missing = currentStep.fields.filter(
-            (field) => field.required && !state.values[field.name]?.trim(),
-        );
-        if (missing.length > 0) {
-            toast.error(
-                missing.length > 1
-                    ? 'Complète les champs demandés avant de continuer.'
-                    : 'Complète ce champ avant de continuer.',
-            );
-            return false;
-        }
-        return true;
-    }
-
-    function validateAllSteps() {
-        const missing = steps.flatMap((step) =>
-            step.fields.filter(
-                (field) => field.required && !state.values[field.name]?.trim(),
-            ),
-        );
-        if (missing.length > 0) {
-            toast.error('Remplis les champs critiques avant de sauvegarder.');
-            return false;
-        }
-        return true;
-    }
-
-    function saveEntry() {
-        const now = new Date();
-        const entry = {
-            id: crypto.randomUUID ? crypto.randomUUID() : `entry-${now.getTime()}`,
-            createdAt: now.toISOString(),
-            ...state.values,
-            summary: buildSummary(state.values),
-        };
-
-        const result = store.saveEntry(entry);
-        if (result.success) {
-            toast.success('Analyse sauvegardée dans ton journal.');
-            resetState();
-            render();
-            onSaved?.(entry);
-        } else {
-            toast.error(result.message || 'Sauvegarde impossible.');
-        }
-    }
-
-    function resetState() {
-        state.stepIndex = 0;
-        Object.keys(state.values).forEach((key) => {
-            state.values[key] = '';
-        });
-    }
 
     function buildSummary(values) {
         return [
@@ -1094,11 +761,13 @@ const root = document.getElementById(rootId);
             `Validation : ${values.validation}`,
             `Plan d'action : ${values.actionPlan}`,
             values.insight ? `Insight : ${values.insight}` : null,
-        ]
-            .filter(Boolean)
-            .join('\n\n');
+        ].filter(Boolean).join('\n\n');
     }
-
+    
+    // Initialisation
+    restoreDraft();
+    render(); 
+    
     return { render };
 }
 
@@ -2678,7 +2347,6 @@ function createGuideModule({ rootId, toast, dojo, modal }) {
                     </p>
                 </header>
 
-                <!-- DOJO BUTTON -->
                 <div class="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6">
                     <div class="flex items-center gap-4">
                         <div class="text-4xl">🧗</div>
