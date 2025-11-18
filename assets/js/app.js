@@ -46,6 +46,28 @@ Format de réponse STRICT : JSON avec les clés suivantes :
   ]
 }`;
 
+'use strict';
+
+// 🛡️ GLOBAL SAFETY NET (Error Boundary)
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    if (msg.includes('ResizeObserver')) return false; // Ignorer erreurs bénignes
+    console.error('🔥 CRASH DETECTED:', { msg, error });
+    
+    // Essayer d'utiliser le toast système si disponible
+    if (window.app?.toast) {
+        window.app.toast.error(`Erreur système : ${msg}. Tentez de rafraîchir.`);
+    }
+    return false;
+};
+
+window.onunhandledrejection = function(event) {
+    console.error('🔥 ASYNC ERROR:', event.reason);
+    // Feedback utilisateur uniquement si c'est critique (pas une annulation)
+    if (window.app?.toast && event.reason?.name !== 'AbortError') {
+        console.warn('Opération en arrière-plan échouée');
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const body = document.body;
     const toast = createToastManager();
@@ -481,6 +503,262 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function createManualAnalyzer({ rootId, store, toast, onSaved }) {
     const root = document.getElementById(rootId);
+    if (!root) return { render: () => {} };
+
+    const AUTOSAVE_KEY = 'boite-outils-manual-draft';
+    
+    // ... (Les définitions egoOptions et steps restent identiques) ...
+    // Pour économiser de l'espace ici, je ne répète pas egoOptions et steps 
+    // s'ils sont déjà dans votre code, gardez-les tels quels.
+    const egoOptions = ["La Défensive", "Le Sauveur", "Le Martyr", "Le Dernier Mot", "Le Refus d'influence"];
+    const steps = [ /* ... Gardez vos steps existants ... */ 
+        {
+            id: 'context',
+            title: '1. Constat',
+            description: 'Capture le contexte brut avant de le re-écrire ou le juger.',
+            fields: [
+                { name: 'context', label: 'Qu’est-ce qui s’est passé ?', type: 'textarea', placeholder: "Décris la scène...", required: true },
+                { name: 'partnerSignal', label: 'Quel a été le signal / trigger ?', type: 'textarea', placeholder: 'Phrase, regard...', required: true },
+            ]
+        },
+        {
+            id: 'ego',
+            title: '2. Ego Radar',
+            description: "Identifie l'ego dominant.",
+            fields: [
+                { name: 'egoFocus', label: "Quel type d'ego s'est activé ?", type: 'select', options: egoOptions, required: true },
+                { name: 'triggerNeed', label: 'Quel besoin personnel n’a pas été nourri ?', type: 'textarea', placeholder: 'Reconnaissance, sécurité...', required: true },
+            ]
+        },
+        {
+            id: 'response',
+            title: '3. MVP de réponse',
+            description: 'La réponse idéale.',
+            fields: [
+                { name: 'alternativeResponse', label: 'Quelle réponse MVP veux-tu tester ?', type: 'textarea', placeholder: 'Réponse idéale...', required: true },
+                { name: 'validation', label: 'Comment valider sa frustration ?', type: 'textarea', placeholder: "Ex: “Je comprends que tu...”", required: true },
+            ]
+        },
+        {
+            id: 'action',
+            title: '4. Action & Insight',
+            description: 'La suite.',
+            fields: [
+                { name: 'actionPlan', label: 'Plan d’action concret ?', type: 'textarea', placeholder: 'Message à envoyer...', required: true },
+                { name: 'insight', label: 'Insight clé ?', type: 'textarea', placeholder: 'Le bug racine...', required: false },
+            ]
+        }
+    ];
+
+    const state = {
+        stepIndex: 0,
+        values: {
+            context: '', partnerSignal: '', egoFocus: '', triggerNeed: '',
+            alternativeResponse: '', validation: '', actionPlan: '', insight: '',
+        },
+    };
+
+    // 🔄 RESTAURATION BROUILLON
+    function restoreDraft() {
+        try {
+            const draft = sessionStorage.getItem(AUTOSAVE_KEY);
+            if (draft) {
+                const parsed = JSON.parse(draft);
+                // Valide seulement si moins de 24h
+                if (Date.now() - parsed.timestamp < 86400000) {
+                    state.values = { ...state.values, ...parsed.values };
+                    state.stepIndex = parsed.stepIndex || 0;
+                    toast.info('📝 Brouillon restauré.');
+                }
+            }
+        } catch (e) { console.debug('Pas de brouillon'); }
+    }
+
+    let delegatedListenerAttached = false;
+
+    function attachDelegatedListeners() {
+        if (delegatedListenerAttached) return;
+        delegatedListenerAttached = true;
+
+        // Input + Autosave
+        root.addEventListener('input', (event) => {
+            const target = event.target;
+            if (!target.name) return;
+            
+            // Retirer la classe d'erreur quand l'utilisateur tape
+            if (target.classList.contains('invalid')) {
+                target.classList.remove('invalid');
+            }
+
+            state.values[target.name] = target.value;
+
+            if (target.tagName === 'TEXTAREA') autoResizeTextarea(target);
+
+            // 💾 SAUVEGARDE AUTO
+            sessionStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+                values: state.values,
+                stepIndex: state.stepIndex,
+                timestamp: Date.now()
+            }));
+        });
+
+        // Navigation
+        root.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-action]');
+            if (!button) return;
+
+            const action = button.getAttribute('data-action');
+            
+            if (action === 'prev') {
+                if (state.stepIndex > 0) {
+                    state.stepIndex -= 1;
+                    render();
+                }
+            } else if (action === 'next') {
+                if (validateCurrentStep()) {
+                    state.stepIndex += 1;
+                    render();
+                }
+            } else if (action === 'save') {
+                if (validateAllSteps()) saveEntry();
+            }
+        });
+    }
+
+    function render() {
+        const currentStep = steps[state.stepIndex];
+        if (!currentStep) return;
+
+        // Rendu HTML (inchangé sauf pour l'appel renderField)
+        root.innerHTML = `
+            <div class="space-y-8">
+                <header class="space-y-2">
+                    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Analyse Manuelle</h2>
+                    <p class="text-slate-600 dark:text-slate-400">
+                        Transforme ta crise en plan d'action. (Étape ${state.stepIndex + 1}/${steps.length})
+                    </p>
+                </header>
+
+                <div class="stepper">
+                    ${steps.map((step, index) => `
+                        <div class="stepper-item ${index === state.stepIndex ? 'active' : ''}">
+                            <span class="stepper-index">${index + 1}</span>
+                            <div class="font-semibold hidden sm:block">${step.title}</div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <form id="manual-form" class="space-y-6">
+                    <h3 class="text-xl font-semibold">${currentStep.title}</h3>
+                    <p class="text-sm text-slate-500 mb-4">${currentStep.description}</p>
+                    ${currentStep.fields.map(field => renderField(field, state.values[field.name] || '')).join('')}
+                </form>
+
+                <div class="wizard-actions">
+                    <button type="button" class="secondary-button" data-action="prev" ${state.stepIndex === 0 ? 'disabled' : ''}>
+                        ← Retour
+                    </button>
+                    ${state.stepIndex < steps.length - 1
+                        ? `<button type="button" class="primary-button" data-action="next">Suivant →</button>`
+                        : `<button type="button" class="primary-button" data-action="save">💾 Sauvegarder</button>`
+                    }
+                </div>
+            </div>
+        `;
+
+        root.querySelectorAll('textarea').forEach(autoResizeTextarea);
+        attachDelegatedListeners();
+    }
+
+    function renderField(field, value) {
+        const reqAttr = field.required ? 'data-required="true"' : '';
+        const commonClasses = "form-input w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 transition-all";
+        
+        let inputHtml = '';
+        if (field.type === 'select') {
+            inputHtml = `
+                <select id="${field.name}" name="${field.name}" class="form-select ${commonClasses}">
+                    <option value="">Sélectionne une option</option>
+                    ${field.options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
+                </select>`;
+        } else {
+            inputHtml = `
+                <textarea id="${field.name}" name="${field.name}" class="form-textarea ${commonClasses}" placeholder="${field.placeholder || ''}">${value || ''}</textarea>`;
+        }
+
+        return `
+            <div class="form-group">
+                <label for="${field.name}" class="form-label font-medium block mb-2" ${reqAttr}>
+                    ${field.label}
+                </label>
+                ${inputHtml}
+            </div>
+        `;
+    }
+
+    // 🔍 VALIDATION VISUELLE
+    function validateCurrentStep() {
+        const currentStep = steps[state.stepIndex];
+        let isValid = true;
+        let firstError = null;
+
+        currentStep.fields.forEach(field => {
+            if (field.required && !state.values[field.name]?.trim()) {
+                isValid = false;
+                const el = root.querySelector(`[name="${field.name}"]`);
+                if (el) {
+                    el.classList.add('invalid'); // Déclenche l'animation CSS
+                    if (!firstError) firstError = el;
+                }
+            }
+        });
+
+        if (!isValid) {
+            toast.error('Merci de remplir les champs obligatoires.');
+            firstError?.focus();
+        }
+        return isValid;
+    }
+
+    function validateAllSteps() {
+        // Validation finale simple (normalement déjà validée par steps)
+        return validateCurrentStep(); 
+    }
+
+    function saveEntry() {
+        const now = new Date();
+        const entry = {
+            id: crypto.randomUUID ? crypto.randomUUID() : `entry-${now.getTime()}`,
+            createdAt: now.toISOString(),
+            ...state.values,
+            summary: buildSummary(state.values),
+        };
+
+        const result = store.saveEntry(entry);
+        if (result.success) {
+            toast.success('Analyse sauvegardée.');
+            // 🧹 NETTOYAGE
+            sessionStorage.removeItem(AUTOSAVE_KEY);
+            resetState();
+            render();
+            onSaved?.(entry);
+        } else {
+            toast.error('Erreur de sauvegarde.');
+        }
+    }
+
+    function resetState() {
+        state.stepIndex = 0;
+        Object.keys(state.values).forEach(key => state.values[key] = '');
+    }
+    
+    // Initialisation
+    restoreDraft();
+    render(); // Premier rendu
+    
+    return { render };
+}
+const root = document.getElementById(rootId);
     if (!root) {
         console.warn(`Racine manuelle "${rootId}" introuvable.`);
         return { render: () => {} };

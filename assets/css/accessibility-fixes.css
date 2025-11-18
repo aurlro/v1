@@ -426,7 +426,7 @@ button {
 }
 
 /* ===================================
-   RESPONSIVE ADJUSTMENTS
+   11. RESPONSIVE ADJUSTMENTS
    =================================== */
 
 @media (max-width: 768px) {
@@ -457,7 +457,7 @@ button {
 }
 
 /* ===================================
-   CONTRAST VERIFICATION (WCAG AAA)
+   12. CONTRAST VERIFICATION (WCAG AAA)
    =================================== */
 
 /* Vérification des contrastes minimums */
@@ -473,4 +473,32 @@ button {
     --contrast-check-primary: #f1f5f9 on #0f172a = 19.4:1 ✓ AAA
     --contrast-check-secondary: #cbd5e1 on #0f172a = 11.2:1 ✓ AAA
     --contrast-check-accent: #22d3ee on #0f172a = 10.1:1 ✓ AAA
+}
+
+/* ===================================
+   13. VALIDATION & FEEDBACK VISUEL
+   =================================== */
+
+/* Indicateur automatique de champ requis */
+.form-label[data-required="true"]::after {
+    content: " *";
+    color: #ef4444; /* Red-500 */
+    font-weight: bold;
+    margin-left: 4px;
+}
+
+/* Animation de secousse en cas d'erreur */
+.form-input.invalid,
+.form-textarea.invalid,
+.form-select.invalid {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15) !important;
+    animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes shake {
+    10%, 90% { transform: translate3d(-1px, 0, 0); }
+    20%, 80% { transform: translate3d(2px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+    40%, 60% { transform: translate3d(4px, 0, 0); }
 }
