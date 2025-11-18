@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Debug</title>
+</head>
+<body>
+    <h1>Test de Chargement JS</h1>
+    <div id="output"></div>
+    <script>
+        document.getElementById('output').innerHTML = 'JavaScript fonctionne !';
+
+        // Test du fichier principal
+        const script = document.createElement('script');
+        script.src = 'assets/js/app.js';
+        script.onerror = function() {
+            document.getElementById('output').innerHTML += '<br>ERREUR: Impossible de charger app.js';
+        };
+        script.onload = function() {
+            document.getElementById('output').innerHTML += '<br>app.js chargé avec succès';
+            setTimeout(() => {
+                if (window.app) {
+                    document.getElementById('output').innerHTML += '<br>window.app est défini';
+                } else {
+                    document.getElementById('output').innerHTML += '<br>ERREUR: window.app n\'est pas défini';
+                }
+            }, 100);
+        };
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
