@@ -1655,6 +1655,9 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                             ${statusInfo}
                         </div>
                         <div class="flex gap-2">
+                            <button type="button" class="secondary-button text-sm" data-action="test-provider" title="Tester si ce provider fonctionne">
+                                🧪 Tester
+                            </button>
                             ${configButtons}
                         </div>
                     </div>
@@ -1764,6 +1767,9 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                         break;
                     case 'configure-ollama':
                         openOllamaModal();
+                        break;
+                    case 'test-provider':
+                        testProvider();
                         break;
                     default:
                         break;
@@ -1898,6 +1904,91 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
             const fallback = runLocalHeuristics(promptText);
             fallback.source = 'heuristic';
             return fallback;
+        }
+
+        async function testProvider() {
+            const currentProvider = getAIProvider();
+            const testButton = root.querySelector('[data-action="test-provider"]');
+            if (!testButton) return;
+
+            // Save button state
+            const originalText = testButton.textContent;
+            const wasDisabled = testButton.disabled;
+
+            // Disable button and show loading state
+            testButton.disabled = true;
+            testButton.textContent = '⏳ Test en cours...';
+
+            try {
+                if (currentProvider === 'gemini') {
+                    const status = gemini.getKeyStatus();
+                    if (!status.configured) {
+                        toast.error('❌ Gemini non configuré. Configure-le d\'abord.');
+                        return;
+                    }
+                    if (status.cooldown) {
+                        const until = formatCountdown(status.cooldown);
+                        toast.warning(`⏸️ Gemini en cooldown jusqu'à ${until}`);
+                        return;
+                    }
+
+                    // Test avec un prompt simple
+                    try {
+                        const testPrompt = 'Test rapide: dis moi juste "ok" si tu reçois ce message.';
+                        const result = await gemini.fetchAnalysis(testPrompt);
+                        toast.success('✅ Gemini fonctionne ! Prêt à l\'utiliser.');
+                    } catch (error) {
+                        const errorMsg = error.message || error.code || 'Erreur inconnue';
+                        let userMessage = '❌ Erreur Gemini: ';
+
+                        if (error.code === 'INVALID_KEY') {
+                            userMessage += 'Clé API invalide. Vérifie ta clé dans les paramètres.';
+                        } else if (error.code === 'QUOTA') {
+                            userMessage += `Quota atteint. ${errorMsg}`;
+                        } else if (error.code === 'NETWORK') {
+                            userMessage += 'Pas de connexion Internet.';
+                        } else if (error.code === 'API_ERROR') {
+                            userMessage += 'L\'API Gemini ne répond pas.';
+                        } else {
+                            userMessage += errorMsg;
+                        }
+                        toast.error(userMessage);
+                    }
+                } else if (currentProvider === 'ollama') {
+                    try {
+                        const config = ollama.getConfig();
+                        const testPrompt = 'Test rapide: dis moi juste "ok" si tu reçois ce message.';
+                        const result = await ollama.fetchAnalysis(testPrompt);
+                        toast.success(`✅ Ollama fonctionne ! Modèle: ${config.model}`);
+                    } catch (error) {
+                        const errorMsg = error.message || 'Erreur inconnue';
+                        let userMessage = '❌ Erreur Ollama: ';
+
+                        if (errorMsg.includes('contacter Ollama')) {
+                            const config = ollama.getConfig();
+                            userMessage += `Ollama ne répond pas sur ${config.endpoint}. Lance Ollama en local.`;
+                        } else if (errorMsg.includes('429')) {
+                            userMessage += 'Trop de requêtes. Patiente avant de relancer.';
+                        } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
+                            userMessage += 'Authentification refusée.';
+                        } else {
+                            userMessage += errorMsg;
+                        }
+                        toast.error(userMessage);
+                    }
+                } else {
+                    // Heuristic
+                    const result = runLocalHeuristics('test');
+                    toast.success('✅ Analyse locale (heuristique) fonctionne.');
+                }
+            } catch (error) {
+                console.error('Test provider error:', error);
+                toast.error('❌ Erreur lors du test du provider.');
+            } finally {
+                // Restore button state
+                testButton.disabled = wasDisabled;
+                testButton.textContent = originalText;
+            }
         }
 
         function setResult(result, originalPrompt = '') {
