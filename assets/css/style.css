@@ -1,0 +1,118 @@
+/* Configuration Tailwind via directives (si vous utilisiez un build process) 
+   Mais pour la version CDN, on met les styles customs ici. */
+
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* Styles des Onglets */
+.nav-tab {
+    @apply flex-1 py-4 px-1 text-center border-b-2 font-medium text-sm transition-all flex justify-center items-center gap-2 whitespace-nowrap;
+}
+.tab-active {
+    border-bottom-color: #0891b2; /* cyan-600 */
+    color: #0891b2;
+}
+.tab-inactive {
+    border-bottom-color: transparent;
+    color: #64748b; /* slate-500 */
+}
+.dark .tab-inactive {
+    color: #94a3b8; /* slate-400 */
+}
+.tab-inactive:hover {
+    color: #334155; /* slate-700 */
+    border-bottom-color: #cbd5e1; /* slate-300 */
+}
+
+/* Animations */
+.page-content, .analyzer-step {
+    animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Input Windows (Zone de texte moderne) */
+.input-window {
+    background-color: #f8fafc; /* slate-50 */
+    border: 1px solid #cbd5e1; /* slate-300 */
+    border-radius: 0.5rem;
+    padding: 1rem;
+    transition: all 0.2s;
+}
+.dark .input-window {
+    background-color: rgba(51, 65, 85, 0.5); /* slate-700/50 */
+    border-color: #475569; /* slate-600 */
+}
+.input-window:focus-within {
+    ring: 2px solid #06b6d4;
+    border-color: #06b6d4;
+}
+.input-window textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    resize: none;
+    outline: none;
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+/* Drag & Drop Zone */
+.drop-area {
+    border: 2px dashed #cbd5e1;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.dark .drop-area {
+    border-color: #475569;
+}
+.drop-area.highlight {
+    border-color: #06b6d4;
+    background-color: #ecfeff;
+}
+.dark .drop-area.highlight {
+    background-color: rgba(22, 78, 99, 0.5);
+}
+
+/* Loader */
+.loader {
+    border-top-color: #06b6d4; /* cyan-500 */
+    animation: spin 1s linear infinite;
+}
+
+/* Modal Backdrop */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 40;
+    animation: fadeIn 0.3s ease-out;
+}
+.modal-panel {
+    position: fixed;
+    z-index: 50;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    max-width: 32rem; /* max-w-lg */
+    background-color: white;
+    border-radius: 1rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    padding: 2rem;
+    animation: fadeIn 0.3s ease-out;
+}
+.dark .modal-panel {
+    background-color: #1e293b; /* slate-800 */
+}

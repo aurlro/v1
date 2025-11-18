@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/
+*.log
+.vscode/
+# Si vous créez un fichier de config pour la clé API
+config.js
