@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gemini = createGeminiService({ encryptor, toast });
     const ollama = createOllamaService({ toast });
     const journalStore = createJournalStore('communicationJournal', toast);
+    const notifications = createNotificationManager();
 
     // --- NOUVELLE UI: Initialisation de la Navigation Sidebar ---
     initTheme();
@@ -126,19 +127,113 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Notifications button
+    // Notifications button - Opens Notifications Panel
     const notificationsButton = document.querySelector('.page-actions button:nth-of-type(2)');
     if (notificationsButton) {
-        notificationsButton.addEventListener('click', () => {
-            const badge = notificationsButton.querySelector('.notification-badge');
-            const count = badge ? parseInt(badge.textContent) : 0;
+        // Update badge on init
+        notifications.updateBadge();
 
-            if (count === 0) {
-                toast.info('📬 Aucune notification pour le moment.');
-            } else {
-                toast.info(`🔔 Vous avez ${count} notification${count > 1 ? 's' : ''}.`);
-            }
+        notificationsButton.addEventListener('click', () => {
+            openNotificationsPanel();
         });
+    }
+
+    // Notifications Panel Modal
+    function openNotificationsPanel() {
+        const allNotifications = notifications.getAll();
+        const unreadCount = notifications.getUnreadCount();
+
+        if (allNotifications.length === 0) {
+            toast.info('📬 Aucune notification pour le moment.');
+            return;
+        }
+
+        const notificationsList = allNotifications
+            .map(
+                (notif) => `
+                    <div class="notification-item ${notif.read ? 'read' : 'unread'}" data-notif-id="${notif.id}">
+                        <div class="notification-header">
+                            <span class="notification-icon">${notifications.getIcon(notif.type)}</span>
+                            <div class="notification-meta">
+                                <h4 class="notification-title">${escapeHTML(notif.title)}</h4>
+                                <span class="notification-time">${notifications.formatTime(notif.timestamp)}</span>
+                            </div>
+                            ${
+                                notif.dismissible
+                                    ? `<button type="button" class="notification-dismiss" data-notif-id="${notif.id}" title="Supprimer">×</button>`
+                                    : ''
+                            }
+                        </div>
+                        <p class="notification-message">${escapeHTML(notif.message)}</p>
+                    </div>
+                `,
+            )
+            .join('');
+
+        const html = `
+            <div class="space-y-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Notifications (${unreadCount} non lues)</h3>
+                    ${
+                        unreadCount > 0
+                            ? '<button type="button" class="text-xs text-blue-600 dark:text-blue-400 hover:underline" id="mark-all-read">Tout marquer comme lu</button>'
+                            : ''
+                    }
+                </div>
+                <div class="notifications-list space-y-2 max-h-96 overflow-y-auto">
+                    ${notificationsList}
+                </div>
+            </div>
+        `;
+
+        modal.show({
+            targetId: 'journal-modal',
+            title: '🔔 Notifications',
+            html,
+            actions: [
+                {
+                    label: 'Réinitialiser démo',
+                    onClick: () => {
+                        notifications.resetToDefaults();
+                        modal.hide('journal-modal');
+                        toast.info('Notifications réinitialisées.');
+                        setTimeout(() => openNotificationsPanel(), 300);
+                    },
+                },
+                {
+                    label: 'Fermer',
+                    onClick: () => modal.hide('journal-modal'),
+                },
+            ],
+        });
+
+        // Event listeners for notification actions
+        setTimeout(() => {
+            document.querySelectorAll('.notification-dismiss').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const notifId = btn.getAttribute('data-notif-id');
+                    notifications.dismiss(notifId);
+                    btn.closest('.notification-item').style.opacity = '0.5';
+                    btn.closest('.notification-item').style.pointerEvents = 'none';
+                });
+            });
+
+            document.getElementById('mark-all-read')?.addEventListener('click', () => {
+                notifications.markAllAsRead();
+                setTimeout(() => openNotificationsPanel(), 200);
+            });
+
+            document.querySelectorAll('.notification-item').forEach((item) => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.notification-dismiss')) return;
+                    const notifId = item.getAttribute('data-notif-id');
+                    notifications.markAsRead(notifId);
+                    item.classList.remove('unread');
+                    item.classList.add('read');
+                });
+            });
+        }, 0);
     }
 
     // --- ANCIENNE NAVIGATION: Compatibilité ---
@@ -2163,8 +2258,8 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                 <form id="gemini-config-form" class="space-y-4">
                     <div class="form-group">
                         <label for="gemini-key">Clé API Gemini</label>
-                        <input type="password" id="gemini-key" name="gemini-key" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm" placeholder="AIza..." autocomplete="off">
-                        <p class="helper-text">
+                        <input type="password" id="gemini-key" name="gemini-key" class="form-input" placeholder="AIza..." autocomplete="off">
+                        <p class="form-helper">
                             La clé est stockée chiffrée sur cet appareil${
                                 status.hint ? ` (actuelle : ****${status.hint})` : ''
                             }.
@@ -2228,22 +2323,23 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                 <form id="ollama-config-form" class="space-y-4">
                     <div class="form-group">
                         <label for="ollama-endpoint">Endpoint Ollama</label>
-                        <input type="text" id="ollama-endpoint" name="ollama-endpoint" value="${config.endpoint}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm" placeholder="http://localhost:11434">
-                        <p class="helper-text">
+                        <input type="text" id="ollama-endpoint" name="ollama-endpoint" value="${escapeHTML(config.endpoint)}" class="form-input" placeholder="http://localhost:11434">
+                        <p class="form-helper">
                             URL de ton serveur Ollama local (par défaut http://localhost:11434)
                         </p>
                     </div>
                     <div class="form-group">
                         <label for="ollama-model">Modèle</label>
-                        <input type="text" id="ollama-model" name="ollama-model" value="${config.model}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm" placeholder="llama3.2">
-                        <p class="helper-text">
+                        <input type="text" id="ollama-model" name="ollama-model" value="${escapeHTML(config.model)}" class="form-input" placeholder="llama3.2">
+                        <p class="form-helper">
                             Nom du modèle Ollama à utiliser (ex: llama3.2, mistral, qwen2.5:7b)
                         </p>
                     </div>
-                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm">
-                        <p class="text-blue-900 dark:text-blue-100 font-semibold mb-1">💡 Installation Ollama</p>
-                        <p class="text-blue-700 dark:text-blue-300 text-xs">
-                            Pour installer Ollama : <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">brew install ollama</code> puis <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">ollama run llama3.2</code>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm">
+                        <p class="text-blue-900 dark:text-blue-100 font-semibold mb-2">💡 Installation Ollama</p>
+                        <p class="text-blue-700 dark:text-blue-300 text-xs leading-relaxed">
+                            Pour installer : <code class="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded font-mono">brew install ollama</code><br>
+                            Puis lancer : <code class="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded font-mono">ollama run llama3.2</code>
                         </p>
                     </div>
                 </form>
