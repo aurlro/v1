@@ -306,9 +306,12 @@ document.addEventListener('DOMContentLoaded', () => {
         modal,
     });
 
+    const dojo = createDojoSimulator({ modal, toast });
     const guideModule = createGuideModule({
         rootId: 'guide-root',
         toast,
+        dojo,
+        modal,
     });
 
     // Module Insights (stub - à développer)
@@ -2380,7 +2383,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
     return { render };
 }
 
-function createGuideModule({ rootId, toast }) {
+function createGuideModule({ rootId, toast, dojo, modal }) {
     const root = document.getElementById(rootId);
     if (!root) {
         console.warn(`Racine guide "${rootId}" introuvable.`);
@@ -2391,11 +2394,27 @@ function createGuideModule({ rootId, toast }) {
         root.innerHTML = `
             <div class="space-y-6">
                 <header>
-                    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Playbook</h2>
+                    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Playbook & Entraînement</h2>
                     <p class="text-slate-600 dark:text-slate-400 text-sm">
-                        Les fondamentaux de la Boîte à Outils : persona IA, glossaire et quick wins de désescalade.
+                        Les fondamentaux + ton simulateur de vol : Dojo d'entraînement pour les egos.
                     </p>
                 </header>
+
+                <!-- DOJO BUTTON -->
+                <div class="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6">
+                    <div class="flex items-center gap-4">
+                        <div class="text-4xl">🧗</div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">Démarrer le Dojo</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">
+                                Entraîne-toi sur 5 scénarios réels. Vois ta réponse sous ego, puis l'antidote.
+                            </p>
+                        </div>
+                        <button type="button" class="primary-button" id="dojo-button">
+                            Démarrer →
+                        </button>
+                    </div>
+                </div>
 
                 <section class="dashboard-card space-y-4">
                     <header>
@@ -2482,6 +2501,22 @@ function createGuideModule({ rootId, toast }) {
             )
             .join('');
     }
+
+    // Setup event listeners after render
+    function attachListeners() {
+        const dojoButton = root?.querySelector('#dojo-button');
+        if (dojoButton) {
+            dojoButton.addEventListener('click', () => {
+                if (dojo) dojo.open();
+            });
+        }
+    }
+
+    const originalRender = render;
+    render = function () {
+        originalRender();
+        attachListeners();
+    };
 
     return { render };
 }

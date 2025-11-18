@@ -881,6 +881,114 @@ body {
 }
 
 /* ===================================
+   DOJO SIMULATOR
+   =================================== */
+
+.dojo-scenario {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dojo-ego-badge {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border-left: 4px solid var(--accent-warning);
+}
+
+.dojo-ego-emoji {
+    font-size: 32px;
+    line-height: 1;
+}
+
+.dojo-scenario-setup {
+    animation: fadeIn 0.4s ease-out 0.1s backwards;
+}
+
+.dojo-instinctive {
+    animation: fadeIn 0.4s ease-out 0.2s backwards;
+}
+
+.dojo-feedback {
+    animation: fadeIn 0.4s ease-out 0.3s backwards;
+}
+
+.dojo-better-responses {
+    animation: fadeIn 0.4s ease-out 0.4s backwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.dojo-menu {
+    display: grid;
+    gap: 12px;
+}
+
+.dojo-scenario-button {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    text-align: left;
+}
+
+.dojo-scenario-button:hover {
+    border-color: var(--accent-primary);
+    background: var(--bg-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.dojo-scenario-button:active {
+    transform: scale(0.98);
+}
+
+.dojo-scenario-emoji {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.dojo-scenario-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.dojo-scenario-info p:first-child {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dojo-scenario-info p:last-child {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* ===================================
    TOAST NOTIFICATIONS
    =================================== */
 
