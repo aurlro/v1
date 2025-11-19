@@ -502,3 +502,41 @@ button {
     30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
     40%, 60% { transform: translate3d(4px, 0, 0); }
 }
+
+/* ===================================
+   KEYBOARD NAVIGATION & ACCESSIBILITY
+   ===================================== */
+
+/* Focus Visible - Visible uniquement à la navigation au clavier */
+:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(8, 145, 178, 0.15);
+}
+
+/* Keyboard mode indicator */
+body.keyboard-nav *:focus {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+/* Ensure focus is visible for interactive elements */
+*:focus {
+    outline: none;
+}
+
+.dark :focus-visible {
+    outline-color: #63b3ed;
+    box-shadow: 0 0 0 4px rgba(99, 179, 237, 0.15);
+}

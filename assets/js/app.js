@@ -52,6 +52,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const navManager = createNavigationManager();
     const commandPalette = createCommandPalette({ navigation: navManager, toast });
 
+    // --- Onboarding pour les nouveaux utilisateurs ---
+    const onboarding = createOnboardingModule({ modal, toast });
+
+    // --- Accessibilité Clavier ---
+    const keyboardAccessibility = createKeyboardAccessibilityModule({
+        modal,
+        commandPalette,
+        navManager
+    });
+    keyboardAccessibility.init();
+
     // --- Gestion Sidebar Mobile ---
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const sidebarCloseBtn = document.getElementById('sidebar-close');
@@ -347,6 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
     guideModule.render();
     insightsModule.render();
 
+    // Afficher le onboarding au premier lancement
+    onboarding.showIfNeeded();
+
     // Restaurer la dernière page visitée
     navManager.restoreLastPage();
 
@@ -599,27 +613,30 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
     function renderField(field, value) {
         // Ajout de l attribut data-required pour le CSS
         const reqAttr = field.required ? 'data-required="true"' : '';
+        const requiredBadge = field.required ? '<span class="text-red-500 font-bold">*</span>' : '';
         // Classes communes
         const commonClasses = "form-input w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none";
-        
+        const errorId = `${field.name}-error`;
+
         let inputHtml = '';
         if (field.type === 'select') {
             inputHtml = `
-                <select id="${field.name}" name="${field.name}" class="form-select ${commonClasses}">
+                <select id="${field.name}" name="${field.name}" class="form-select ${commonClasses}" aria-invalid="false" aria-describedby="${errorId}">
                     <option value="">Sélectionne une option</option>
                     ${field.options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
                 </select>`;
         } else {
             inputHtml = `
-                <textarea id="${field.name}" name="${field.name}" class="form-textarea ${commonClasses}" placeholder="${field.placeholder || ''}">${value || ''}</textarea>`;
+                <textarea id="${field.name}" name="${field.name}" class="form-textarea ${commonClasses}" placeholder="${field.placeholder || ''}" aria-invalid="false" aria-describedby="${errorId}">${value || ''}</textarea>`;
         }
 
         return `
             <div class="form-group mb-4">
                 <label for="${field.name}" class="form-label font-medium block mb-2 text-slate-700 dark:text-slate-300" ${reqAttr}>
-                    ${escapeHTML(field.label)}
+                    ${escapeHTML(field.label)} ${requiredBadge}
                 </label>
                 ${inputHtml}
+                <div id="${errorId}" class="form-error-message text-sm text-red-500 dark:text-red-400 mt-1 hidden" role="alert"></div>
             </div>
         `;
     }
@@ -629,21 +646,46 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         const currentStep = steps[state.stepIndex];
         let isValid = true;
         let firstError = null;
+        const errors = new Map();
+
+        // Nettoyer les erreurs précédentes
+        root.querySelectorAll('.form-error-message').forEach(el => {
+            el.classList.add('hidden');
+            el.textContent = '';
+        });
+        root.querySelectorAll('[aria-invalid="true"]').forEach(el => {
+            el.setAttribute('aria-invalid', 'false');
+            el.classList.remove('invalid');
+        });
 
         currentStep.fields.forEach(field => {
+            const value = state.values[field.name]?.trim();
+            const el = root.querySelector(`[name="${field.name}"]`);
+            const errorEl = root.querySelector(`#${field.name}-error`);
+
             // Vérifie si champ requis est vide
-            if (field.required && !state.values[field.name]?.trim()) {
+            if (field.required && !value) {
                 isValid = false;
-                const el = root.querySelector(`[name="${field.name}"]`);
+                errors.set(field.name, `${field.label} est requis`);
+
                 if (el) {
-                    el.classList.add('invalid'); // Déclenche l animation CSS 'shake'
+                    el.classList.add('invalid');
+                    el.setAttribute('aria-invalid', 'true');
+                    if (errorEl) {
+                        errorEl.textContent = `${field.label} est requis`;
+                        errorEl.classList.remove('hidden');
+                    }
                     if (!firstError) firstError = el;
                 }
             }
         });
 
         if (!isValid) {
-            toast.error('Merci de remplir les champs obligatoires.');
+            const errorCount = errors.size;
+            const errorText = errorCount === 1
+                ? 'Merci de remplir le champ obligatoire.'
+                : `Merci de remplir les ${errorCount} champs obligatoires.`;
+            toast.error(errorText);
             firstError?.focus();
         }
         return isValid;
