@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ===================================
    BOÎTE À OUTILS - NOUVELLE UX/UI
    Navigation Sidebar + Layout Moderne
@@ -1129,9 +1133,118 @@ body {
     100% { background-position: 200% 0; }
 }
 
+/* ===== TRANSITIONS & ANIMATIONS SYSTEM ===== */
+/* Page Transitions */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes slideUpIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Modal Animations */
+@keyframes modalBackdropFadeIn {
+    from { opacity: 0; backdrop-filter: blur(0px); }
+    to { opacity: 1; backdrop-filter: blur(4px); }
+}
+
+@keyframes modalContentPop {
+    from { opacity: 0; transform: scale(0.95) translateY(-20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Toast Animations */
+@keyframes toastSlideIn {
+    from { opacity: 0; transform: translateX(32px) translateY(12px); }
+    to { opacity: 1; transform: translateX(0) translateY(0); }
+}
+
+/* Badge Animations */
+@keyframes badgePop {
+    0% { opacity: 0; transform: scale(0.3); }
+    50% { transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* Spinner */
+@keyframes spinLoader {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Apply Animations */
+.page-content {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.toast-notification {
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-wrapper {
+    animation: modalBackdropFadeIn 0.3s ease-out;
+}
+
+.modal-content {
+    animation: modalContentPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notification-badge, .nav-badge {
+    animation: badgePop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Smooth Transitions */
 * {
     transition-property: background-color, border-color, color, fill, stroke;
     transition-duration: 200ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Button Interactions */
+.btn:hover:not(:disabled),
+button:hover:not(:disabled),
+.nav-item:hover {
+    transform: scale(1.02);
+}
+
+.btn:active:not(:disabled),
+button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Input Transitions */
+input, textarea, select {
+    transition: all 0.2s ease-out;
+}
+
+/* Stagger Animation for List Items */
+.list-item {
+    animation: slideUpIn 0.4s ease-out backwards;
+}
+
+.list-item:nth-child(1) { animation-delay: 0.05s; }
+.list-item:nth-child(2) { animation-delay: 0.1s; }
+.list-item:nth-child(3) { animation-delay: 0.15s; }
+.list-item:nth-child(4) { animation-delay: 0.2s; }
+.list-item:nth-child(5) { animation-delay: 0.25s; }
+.list-item:nth-child(6) { animation-delay: 0.3s; }
+.list-item:nth-child(7) { animation-delay: 0.35s; }
+.list-item:nth-child(8) { animation-delay: 0.4s; }
+.list-item:nth-child(9) { animation-delay: 0.45s; }
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
 }

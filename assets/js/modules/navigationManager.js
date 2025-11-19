@@ -17,22 +17,32 @@ function createNavigationManager() {
     let currentPage = 'home';
 
     function navigateTo(pageKey, options = {}) {
+        console.log(`Navigating to: ${pageKey}`);
         if (!pageMap[pageKey]) {
             console.warn(`Page ${pageKey} non trouvée`);
             return;
         }
 
         const pageInfo = pageMap[pageKey];
+        const newPageEl = document.getElementById(pageInfo.id);
 
-        // Masquer toutes les pages
+        // Skip if already on this page
+        if (currentPage === pageKey && newPageEl && !newPageEl.classList.contains('hidden')) {
+            return;
+        }
+
+        // Animate out current page
         document.querySelectorAll('.page-content').forEach(el => {
-            el.classList.add('hidden');
+            if (!el.classList.contains('hidden')) {
+                el.classList.add('hidden');
+            }
         });
 
-        // Afficher la page actuelle
-        const pageEl = document.getElementById(pageInfo.id);
-        if (pageEl) {
-            pageEl.classList.remove('hidden');
+        // Afficher la page actuelle avec fade-in animation
+        if (newPageEl) {
+            newPageEl.classList.remove('hidden');
+            // Trigger reflow to ensure animation plays
+            void newPageEl.offsetHeight;
         }
 
         // Mettre à jour le breadcrumb

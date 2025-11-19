@@ -1,0 +1,437 @@
+/* ====================================
+   Transitions & Animations System
+   Professional motion for better UX
+   ==================================== */
+
+/* ===== Page Transition Animations ===== */
+
+/* Fade-in/fade-out for page content */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+/* Slide-up for page content */
+@keyframes slideUpIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideDownOut {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-12px);
+    }
+}
+
+/* ===== Modal Animations ===== */
+
+/* Modal backdrop fade */
+@keyframes modalBackdropFadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+    }
+}
+
+@keyframes modalBackdropFadeOut {
+    from {
+        opacity: 1;
+        backdrop-filter: blur(4px);
+    }
+    to {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+}
+
+/* Modal content pop */
+@keyframes modalContentPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes modalContentScale {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+}
+
+/* ===== Sidebar Animations ===== */
+
+/* Sidebar slide-in from left */
+@keyframes sidebarSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes sidebarSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+}
+
+/* ===== Toast Animations ===== */
+
+/* Toast slide-in from bottom */
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(32px) translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+}
+
+@keyframes toastSlideOut {
+    from {
+        opacity: 1;
+        transform: translateX(0) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(32px) translateY(12px);
+    }
+}
+
+/* ===== Button & Input Transitions ===== */
+
+/* Button hover scale */
+@keyframes buttonHoverScale {
+    from {
+        transform: scale(1);
+    }
+    to {
+        transform: scale(1.02);
+    }
+}
+
+/* Input focus glow */
+@keyframes inputFocusGlow {
+    from {
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+    to {
+        box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+}
+
+/* ===== Loading Animations ===== */
+
+/* Enhanced pulse animation */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+/* Spinner rotation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ===== Badge Animations ===== */
+
+/* Badge pop animation */
+@keyframes badgePop {
+    0% {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Badge bounce */
+@keyframes badgeBounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* ===== Page Content Transitions ===== */
+
+.page-content {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.page-content.hidden {
+    animation: fadeOut 0.2s ease-out forwards;
+    display: none !important;
+}
+
+/* Stagger animation for list items */
+.list-item {
+    animation: slideUpIn 0.4s ease-out backwards;
+}
+
+.list-item:nth-child(1) { animation-delay: 0.05s; }
+.list-item:nth-child(2) { animation-delay: 0.1s; }
+.list-item:nth-child(3) { animation-delay: 0.15s; }
+.list-item:nth-child(4) { animation-delay: 0.2s; }
+.list-item:nth-child(5) { animation-delay: 0.25s; }
+.list-item:nth-child(6) { animation-delay: 0.3s; }
+.list-item:nth-child(7) { animation-delay: 0.35s; }
+.list-item:nth-child(8) { animation-delay: 0.4s; }
+.list-item:nth-child(9) { animation-delay: 0.45s; }
+.list-item:nth-child(n+10) { animation-delay: 0.5s; }
+
+/* ===== Modal Transitions ===== */
+
+.modal-wrapper {
+    animation: modalBackdropFadeIn 0.3s ease-out;
+}
+
+.modal-wrapper.closing {
+    animation: modalBackdropFadeOut 0.2s ease-out forwards;
+}
+
+.modal-content {
+    animation: modalContentPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-content.closing {
+    animation: modalContentScale 0.2s ease-out forwards;
+}
+
+/* ===== Sidebar Transitions ===== */
+
+.sidebar.open {
+    animation: sidebarSlideIn 0.3s ease-out;
+}
+
+.sidebar.closing {
+    animation: sidebarSlideOut 0.2s ease-out forwards;
+}
+
+/* ===== Button Transitions ===== */
+
+.btn, button, [role="button"], .nav-item, .icon-btn {
+    transition: all 0.2s ease-out;
+}
+
+.btn:hover:not(:disabled),
+button:hover:not(:disabled),
+[role="button"]:hover:not(:disabled),
+.nav-item:hover,
+.icon-btn:hover {
+    transform: scale(1.02);
+    transition: all 0.15s ease-out;
+}
+
+.btn:active:not(:disabled),
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+    transform: scale(0.98);
+    transition: all 0.05s ease-out;
+}
+
+/* ===== Input Transitions ===== */
+
+input, textarea, select {
+    transition: all 0.2s ease-out;
+}
+
+input:focus, textarea:focus, select:focus {
+    animation: inputFocusGlow 0.3s ease-out;
+}
+
+/* ===== Form Field Transitions ===== */
+
+.form-group {
+    transition: all 0.2s ease-out;
+}
+
+.form-group.error {
+    animation: slideUpIn 0.2s ease-out;
+}
+
+.form-error, .form-message {
+    animation: slideUpIn 0.2s ease-out;
+}
+
+/* ===== Loading State Transitions ===== */
+
+.is-loading {
+    position: relative;
+    color: transparent;
+}
+
+.is-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid rgba(59, 130, 246, 0.2);
+    border-top-color: rgb(59, 130, 246);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+/* ===== Badge Transitions ===== */
+
+.notification-badge, .nav-badge, [data-badge] {
+    animation: badgePop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notification-badge.bounce {
+    animation: badgeBounce 0.6s ease-in-out infinite;
+}
+
+/* ===== Toast Transitions ===== */
+
+.toast-notification {
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast-notification.dismissing {
+    animation: toastSlideOut 0.2s ease-out forwards;
+}
+
+/* ===== Skeleton Loading ===== */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* ===== Smooth Color Transitions ===== */
+
+.btn, button, input, textarea, select, .nav-item, [role="button"] {
+    transition: background-color 0.2s ease-out, color 0.2s ease-out, border-color 0.2s ease-out;
+}
+
+/* Dark mode theme transition */
+html {
+    transition: background-color 0.2s ease-out, color 0.2s ease-out;
+}
+
+/* ===== Disabled States ===== */
+
+.btn:disabled, button:disabled, input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transition: opacity 0.2s ease-out;
+}
+
+/* ===== Selection Transitions ===== */
+
+.nav-item.active, [aria-selected="true"] {
+    transition: all 0.2s ease-out;
+}
+
+/* ===== Accessibility: Respect prefers-reduced-motion ===== */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ===== Mobile-specific transitions ===== */
+
+@media (max-width: 768px) {
+    /* Reduce animation duration on mobile for snappier feel */
+    .page-content {
+        animation-duration: 0.2s;
+    }
+
+    .modal-content {
+        animation-duration: 0.3s;
+    }
+
+    .toast-notification {
+        animation-duration: 0.2s;
+    }
+}
