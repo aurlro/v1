@@ -1,0 +1,137 @@
+{
+  "app": {
+    "name": "Boîte à Outils",
+    "subtitle": "Communication",
+    "description": "Outil d'analyse et d'aide à la communication interpersonnelle"
+  },
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "journal": "Mon Journal",
+    "analyzeQuick": "Analyse Rapide",
+    "analyzeManual": "Analyse Guidée",
+    "analyzeAI": "Analyse IA",
+    "guide": "Guide & Concepts",
+    "insights": "Mes Insights"
+  },
+  "sections": {
+    "main": "PRINCIPAL",
+    "analyze": "ANALYSER",
+    "learn": "APPRENDRE"
+  },
+  "buttons": {
+    "yes": "Oui",
+    "no": "Non",
+    "ok": "OK",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "edit": "Éditer",
+    "close": "Fermer",
+    "newAnalysis": "Nouvelle analyse",
+    "settings": "Paramètres",
+    "help": "Aide",
+    "search": "Rechercher",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "submit": "Soumettre",
+    "reset": "Réinitialiser"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "warning": "Avertissement",
+    "info": "Information",
+    "notFound": "Non trouvé",
+    "noData": "Aucune donnée",
+    "pleaseWait": "Veuillez patienter...",
+    "list": {
+      "conjunction": {
+        "and": "et",
+        "or": "ou"
+      }
+    }
+  },
+  "messages": {
+    "welcome": "Bienvenue !",
+    "goodbye": "Au revoir",
+    "thanks": "Merci",
+    "sorry": "Désolé",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer ?",
+    "unsavedChanges": "Vous avez des modifications non enregistrées",
+    "saved": "Enregistré",
+    "deleted": "Supprimé",
+    "created": "Créé",
+    "updated": "Mis à jour",
+    "copied": "Copié"
+  },
+  "form": {
+    "required": "Requis",
+    "optional": "Optionnel",
+    "invalidEmail": "Email invalide",
+    "invalidPhone": "Téléphone invalide",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "enterValue": "Entrez une valeur",
+    "selectOption": "Sélectionnez une option",
+    "minLength": "Minimum {length} caractères",
+    "maxLength": "Maximum {length} caractères"
+  },
+  "keyboard": {
+    "help": "Aide au clavier",
+    "shortcuts": "Raccourcis clavier",
+    "searchOrCommand": "Rechercher ou exécuter une commande",
+    "openCommandPalette": "Ouvrir la palette de commande",
+    "newQuickAnalysis": "Nouvelle analyse rapide",
+    "goToJournal": "Aller au journal",
+    "showKeyboardHelp": "Afficher l'aide au clavier",
+    "closeModal": "Fermer la boîte de dialogue",
+    "navigateItems": "Naviguer entre les éléments"
+  },
+  "theme": {
+    "light": "Clair",
+    "dark": "Sombre",
+    "auto": "Auto"
+  },
+  "notifications": {
+    "tip": "Astuce",
+    "feature": "Nouveau",
+    "success": "Succès",
+    "error": "Erreur",
+    "warning": "Avertissement",
+    "noNotifications": "Aucune notification"
+  },
+  "dojo": {
+    "title": "Entraînement Dojo",
+    "description": "Entraînez-vous avec des scénarios interactifs",
+    "scenario": "Scénario",
+    "start": "Commencer",
+    "playing": "En cours...",
+    "completed": "Complété",
+    "goal": "Objectif",
+    "tips": "Conseils",
+    "reflection": "Réflexion"
+  },
+  "analyzer": {
+    "quick": "Analyse Rapide",
+    "manual": "Analyse Guidée",
+    "ai": "Analyse IA",
+    "analyze": "Analyser",
+    "situation": "Situation",
+    "context": "Contexte",
+    "result": "Résultat",
+    "suggestion": "Suggestion"
+  },
+  "onboarding": {
+    "welcome": "Bienvenue",
+    "step1": "Bienvenue dans la Boîte à Outils de Communication!",
+    "step1Desc": "Un outil pour améliorer votre communication interpersonnelle",
+    "step2": "Analysez vos interactions",
+    "step2Desc": "Utilisez l'analyse rapide pour comprendre vos conversations",
+    "step3": "Apprenez des concepts",
+    "step3Desc": "Découvrez des frameworks et des modèles de communication",
+    "step4": "Progressez chaque jour",
+    "step4Desc": "Suivez vos insights et célébrez vos progrès",
+    "getStarted": "Commencer",
+    "skip": "Ignorer"
+  }
+}

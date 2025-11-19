@@ -1454,3 +1454,60 @@ input, textarea, select {
         .btn:active, button:active, .nav-item:active { transform: scale(0.95); }
     }
 }
+
+/* ===== I18N STYLES ===== */
+/* Language Switcher */
+.language-switcher {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 8px;
+    background-color: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.language-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border: 2px solid var(--border-color);
+    background-color: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
+}
+
+.language-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.language-btn.active {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}
+
+.language-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+}
+
+.dark .language-switcher {
+    background-color: var(--bg-secondary);
+}
+
+@media (max-width: 768px) {
+    .language-switcher {
+        gap: 4px;
+        padding: 6px;
+    }
+
+    .language-btn {
+        padding: 5px 10px;
+        font-size: 11px;
+        min-height: 36px;
+    }
+}

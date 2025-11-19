@@ -1,0 +1,137 @@
+{
+  "app": {
+    "name": "Toolbox",
+    "subtitle": "Communication",
+    "description": "Tool for analyzing and helping interpersonal communication"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "journal": "My Journal",
+    "analyzeQuick": "Quick Analysis",
+    "analyzeManual": "Guided Analysis",
+    "analyzeAI": "AI Analysis",
+    "guide": "Guide & Concepts",
+    "insights": "My Insights"
+  },
+  "sections": {
+    "main": "MAIN",
+    "analyze": "ANALYZE",
+    "learn": "LEARN"
+  },
+  "buttons": {
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "newAnalysis": "New Analysis",
+    "settings": "Settings",
+    "help": "Help",
+    "search": "Search",
+    "next": "Next",
+    "previous": "Previous",
+    "submit": "Submit",
+    "reset": "Reset"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Information",
+    "notFound": "Not found",
+    "noData": "No data",
+    "pleaseWait": "Please wait...",
+    "list": {
+      "conjunction": {
+        "and": "and",
+        "or": "or"
+      }
+    }
+  },
+  "messages": {
+    "welcome": "Welcome!",
+    "goodbye": "Goodbye",
+    "thanks": "Thank you",
+    "sorry": "Sorry",
+    "confirmDelete": "Are you sure you want to delete?",
+    "unsavedChanges": "You have unsaved changes",
+    "saved": "Saved",
+    "deleted": "Deleted",
+    "created": "Created",
+    "updated": "Updated",
+    "copied": "Copied"
+  },
+  "form": {
+    "required": "Required",
+    "optional": "Optional",
+    "invalidEmail": "Invalid email",
+    "invalidPhone": "Invalid phone number",
+    "passwordMismatch": "Passwords do not match",
+    "enterValue": "Enter a value",
+    "selectOption": "Select an option",
+    "minLength": "Minimum {length} characters",
+    "maxLength": "Maximum {length} characters"
+  },
+  "keyboard": {
+    "help": "Keyboard Help",
+    "shortcuts": "Keyboard Shortcuts",
+    "searchOrCommand": "Search or execute a command",
+    "openCommandPalette": "Open command palette",
+    "newQuickAnalysis": "New quick analysis",
+    "goToJournal": "Go to journal",
+    "showKeyboardHelp": "Show keyboard help",
+    "closeModal": "Close dialog",
+    "navigateItems": "Navigate items"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "auto": "Auto"
+  },
+  "notifications": {
+    "tip": "Tip",
+    "feature": "New",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "noNotifications": "No notifications"
+  },
+  "dojo": {
+    "title": "Dojo Training",
+    "description": "Practice with interactive scenarios",
+    "scenario": "Scenario",
+    "start": "Start",
+    "playing": "Playing...",
+    "completed": "Completed",
+    "goal": "Goal",
+    "tips": "Tips",
+    "reflection": "Reflection"
+  },
+  "analyzer": {
+    "quick": "Quick Analysis",
+    "manual": "Guided Analysis",
+    "ai": "AI Analysis",
+    "analyze": "Analyze",
+    "situation": "Situation",
+    "context": "Context",
+    "result": "Result",
+    "suggestion": "Suggestion"
+  },
+  "onboarding": {
+    "welcome": "Welcome",
+    "step1": "Welcome to the Communication Toolbox!",
+    "step1Desc": "A tool to improve your interpersonal communication",
+    "step2": "Analyze your interactions",
+    "step2Desc": "Use quick analysis to understand your conversations",
+    "step3": "Learn concepts",
+    "step3Desc": "Discover communication frameworks and models",
+    "step4": "Progress every day",
+    "step4Desc": "Track your insights and celebrate your progress",
+    "getStarted": "Get Started",
+    "skip": "Skip"
+  }
+}
