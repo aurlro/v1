@@ -7,11 +7,8 @@
     <meta name="description" content="Outil d'analyse et d'aide à la communication interpersonnelle.">
     <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="assets/css/styles.css">
-    <link rel="stylesheet" href="assets/css/buttons.css">
-    <link rel="stylesheet" href="assets/css/modules.css">
-    <link rel="stylesheet" href="assets/css/accessibility-fixes.css">
+    <!-- Compiled Tailwind CSS (optimized for production) -->
+    <link rel="stylesheet" href="assets/css/dist/styles.css">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -196,27 +193,45 @@
         <span class="nav-icon-placeholder" data-icon="upload"></span>
     </button>
 
-    <!-- Modules et Services -->
+    <!-- Core Module Loading System -->
+    <script src="assets/js/moduleLoader.js"></script>
+    <script src="assets/js/moduleRegistry.js"></script>
+    <script src="assets/js/featureLoader.js"></script>
+    <script src="assets/js/initModules.js"></script>
+
+    <!-- Essential Core Modules (always loaded) -->
     <script src="assets/js/security.js"></script>
     <script src="assets/js/qualityGuards.js"></script>
     <script src="assets/js/app-constants.js"></script>
     <script src="assets/js/app-event-manager.js"></script>
     <script src="assets/js/app-loading.js"></script>
     <script src="assets/js/iconSystem.js"></script>
+    <script src="assets/js/icon-renderer.js"></script>
+
+    <!-- Framework Modules (loaded immediately, needed by most pages) -->
     <script src="assets/js/modules/navigationManager.js"></script>
     <script src="assets/js/modules/commandPalette.js"></script>
-    <script src="assets/js/modules/quickAnalyzer.js"></script>
     <script src="assets/js/modules/notificationManager.js"></script>
     <script src="assets/js/modules/onboarding.js"></script>
     <script src="assets/js/modules/keyboardAccessibility.js"></script>
-    <script src="assets/js/modules/dojoSimulator.js"></script>
     <script src="assets/js/modules/footerEnhancements.js"></script>
-    <!-- Phase 1: Psychological Frameworks Library -->
-    <script src="assets/js/modules/conceptLibrary.js"></script>
-    <script src="assets/js/modules/gottmanPatterns.js"></script>
-    <script src="assets/js/modules/couplePatterns.js"></script>
-    <script src="assets/js/modules/attachmentStyles.js"></script>
-    <script src="assets/js/icon-renderer.js"></script>
+
+    <!-- Feature Modules (lazy loaded on demand) -->
+    <!-- Quick Analyzer Feature -->
+    <script async src="assets/js/modules/quickAnalyzer.js"></script>
+    <script async src="assets/js/modules/dojoSimulator.js"></script>
+
+    <!-- Journal Feature -->
+    <script async src="assets/js/modules/journalStore.js"></script>
+    <script async src="assets/js/modules/localEncryptor.js"></script>
+
+    <!-- AI Analysis & Education Features -->
+    <script async src="assets/js/modules/conceptLibrary.js"></script>
+    <script async src="assets/js/modules/gottmanPatterns.js"></script>
+    <script async src="assets/js/modules/couplePatterns.js"></script>
+    <script async src="assets/js/modules/attachmentStyles.js"></script>
+
+    <!-- Main Application -->
     <script src="assets/js/app.js"></script>
 </body>
 </html>

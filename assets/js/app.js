@@ -52,6 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const navManager = createNavigationManager();
     const commandPalette = createCommandPalette({ navigation: navManager, toast });
 
+    // --- Code Splitting & Lazy Loading ---
+    FeatureLoader.init({ navigationManager: navManager, toastManager: toast });
+    // Preload Quick Analyzer (users likely to use it)
+    FeatureLoader.preload(['quickAnalyzer']).catch(err =>
+        console.warn('Background preload failed (non-critical):', err)
+    );
+
     // --- Onboarding pour les nouveaux utilisateurs ---
     const onboarding = createOnboardingModule({ modal, toast });
 
