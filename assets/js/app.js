@@ -1,12 +1,12 @@
 'use strict';
 
 // 🛡️ GLOBAL SAFETY NET (Error Boundary)
-// Capture les erreurs critiques pour éviter l'écran blanc
+// Capture les erreurs critiques pour éviter l écran blanc
 window.onerror = function(msg, url, lineNo, columnNo, error) {
     if (msg.includes('ResizeObserver')) return false; // Ignorer erreurs bénignes
     console.error('🔥 CRASH DETECTED:', { msg, error });
-    
-    // Essayer d'utiliser le toast système si disponible
+
+    // Essayer d utiliser le toast système si disponible
     if (window.app?.toast) {
         window.app.toast.error(`Erreur système : ${msg}. Tentez de rafraîchir.`);
     }
@@ -15,59 +15,14 @@ window.onerror = function(msg, url, lineNo, columnNo, error) {
 
 window.onunhandledrejection = function(event) {
     console.error('🔥 ASYNC ERROR:', event.reason);
-    // Feedback utilisateur uniquement si c'est critique (pas une annulation)
+    // Feedback utilisateur uniquement si c est critique (pas une annulation)
     if (window.app?.toast && event.reason?.name !== 'AbortError') {
         console.warn('Opération en arrière-plan échouée');
     }
 };
 
-const STORAGE_KEYS = {
-    theme: 'boite-outils-theme',
-    lastPage: 'boite-outils-last-page',
-    aiProvider: 'boite-outils-ai-provider', // 'gemini', 'ollama', or 'heuristic'
-};
-
-const GEMINI_STORAGE_KEYS = {
-    encryptedKey: 'gemini.key.v1',
-    secret: 'gemini.secret.v1',
-    cooldown: 'gemini.cooldown.v1',
-};
-
-const OLLAMA_STORAGE_KEYS = {
-    endpoint: 'ollama.endpoint.v1',
-    model: 'ollama.model.v1',
-};
-
-const GEMINI_ENDPOINT =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-
-const OLLAMA_DEFAULTS = {
-    endpoint: 'http://localhost:11434',
-    model: 'llama3.2',
-};
-
-const COOLDOWN_DEFAULTS = {
-    defaultMs: 60000, // 1 minute
-    timestampThreshold: 1000000000000, // Unix timestamp in milliseconds threshold
-};
-
-const GEMINI_SYSTEM_PROMPT = `Tu es un Coach & Analyste en communication de crise interpersonnelle.
-Ton utilisateur est un Product Owner / Business Analyst en crise personnelle.
-Ton rôle :
-1. Valider l'émotion exprimée.
-2. Diagnostiquer l'ego dominant (Défensive, Sauveur, Martyr, Dernier Mot, Refus d'influence).
-3. Identifier le besoin sous-jacent (user story).
-4. Proposer plusieurs scripts, chacun avec un objectif stratégique clair (désescalade, poser une limite, alignement produit).
-Format de réponse STRICT : JSON avec les clés suivantes :
-{
-  "meta": "phrase courte résumant le niveau de tension",
-  "takeaways": ["liste d'insights actionnables"],
-  "options": [
-    { "objective": "Objectif stratégique", "script": "Script complet, ton validant" }
-  ]
-}`;
-
 document.addEventListener('DOMContentLoaded', () => {
+    renderIcons();
     const body = document.body;
     const toast = createToastManager();
     const modal = createModalManager();
@@ -159,6 +114,35 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Add sample notifications
+    notifications.add({
+        type: notifications.TYPES.TIP,
+        title: 'Astuce',
+        message: 'Utilisez ⌘K pour ouvrir la palette de commande.',
+        dismissible: true,
+    });
+    notifications.add({
+        type: notifications.TYPES.FEATURE,
+        title: 'Nouveau',
+        message: 'Vous pouvez maintenant tester les providers IA.',
+        dismissible: true,
+    });
+
+    // Add sample notifications
+    notifications.add({
+        type: notifications.TYPES.SUCCESS,
+        title: 'Bienvenue !',
+        message: 'Votre tableau de bord est prêt.',
+        dismissible: true,
+    });
+    notifications.add({
+        type: notifications.TYPES.TIP,
+        title: 'Astuce',
+        message: 'Utilisez ⌘K pour ouvrir la palette de commande.',
+        dismissible: true,
+    });
+
+
     // Notifications Panel Modal
     function openNotificationsPanel() {
         const allNotifications = notifications.getAll();
@@ -179,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <h4 class="notification-title">${escapeHTML(notif.title)}</h4>
                                 <span class="notification-time">${notifications.formatTime(notif.timestamp)}</span>
                             </div>
-                            ${
+                            ${ 
                                 notif.dismissible
                                     ? `<button type="button" class="notification-dismiss" data-notif-id="${notif.id}" title="Supprimer">×</button>`
                                     : ''
@@ -195,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="space-y-2">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold">Notifications (${unreadCount} non lues)</h3>
-                    ${
+                    ${ 
                         unreadCount > 0
                             ? '<button type="button" class="text-xs text-blue-600 dark:text-blue-400 hover:underline" id="mark-all-read">Tout marquer comme lu</button>'
                             : ''
@@ -340,7 +324,8 @@ document.addEventListener('DOMContentLoaded', () => {
         render: () => {
             const root = document.getElementById('insights-root');
             if (!root) return;
-            root.innerHTML = `
+            root.innerHTML =
+                `
                 <div class="space-y-6">
                     <h2 class="text-2xl font-bold">Mes Insights</h2>
                     <div class="card">
@@ -440,64 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function initNavigation() {
-        const pageSections = Array.from(document.querySelectorAll('.page-content'));
-        const tabButtons = new Map(
-            Array.from(document.querySelectorAll('.nav-tab')).map((button) => {
-                const id = button.id.replace('tab-', '');
-                return [id, button];
-            }),
-        );
-
-        // Handle tab button clicks
-        tabButtons.forEach((button, tabId) => {
-            button.addEventListener('click', () => {
-                navigateTo(tabId);
-            });
-        });
-
-        document.addEventListener('click', (event) => {
-            const navigateTrigger = event.target.closest('[data-navigate]');
-            if (navigateTrigger) {
-                const target = navigateTrigger.getAttribute('data-navigate');
-                if (target) {
-                    event.preventDefault();
-                    navigateTo(target);
-                }
-            }
-        });
-
-        function navigateTo(pageId, options = {}) {
-            const sectionId = `page-${pageId}`;
-            const sectionToShow = document.getElementById(sectionId);
-            if (!sectionToShow) {
-                console.warn(`Section ${sectionId} introuvable.`);
-                return;
-            }
-
-            pageSections.forEach((section) => {
-                section.classList.toggle('hidden', section.id !== sectionId);
-            });
-
-            tabButtons.forEach((button, tabId) => {
-                const isActive = tabId === pageId;
-                button.classList.toggle('tab-active', isActive);
-                button.classList.toggle('tab-inactive', !isActive);
-            });
-
-            if (options.persist !== false) {
-                try {
-                    localStorage.setItem(STORAGE_KEYS.lastPage, pageId);
-                } catch (error) {
-                    console.debug('Impossible de stocker la page courante :', error);
-                }
-            }
-        }
-
-        return { navigateTo };
-    }
 });
-
 // --- Modules & Stores ---
 
 // 🔥 MODULE AMÉLIORÉ : Analyse Manuelle (Autosave + Validation)
@@ -522,7 +450,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         {
             id: 'ego',
             title: '2. Ego Radar',
-            description: "Identifie l'ego dominant pour pouvoir le désamorcer.",
+            description: "Identifie l ego dominant pour pouvoir le désamorcer.",
             fields: [
                 { name: 'egoFocus', label: "Quel type d'ego s'est activé ?", type: 'select', options: egoOptions, required: true },
                 { name: 'triggerNeed', label: 'Quel besoin personnel n’a pas été nourri ?', type: 'textarea', placeholder: 'Reconnaissance, soutien, sécurité...', required: true },
@@ -534,16 +462,16 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
             description: 'Dessine la réponse que tu aurais aimé livrer.',
             fields: [
                 { name: 'alternativeResponse', label: 'Quelle réponse MVP veux-tu tester ?', type: 'textarea', placeholder: 'Rédige la réponse idéale...', required: true },
-                { name: 'validation', label: 'Comment valider sa frustration ?', type: 'textarea', placeholder: "Ex: “Je comprends que tu...”", required: true },
+                { name: 'validation', label: 'Comment valider sa frustration ?', type: 'textarea', placeholder: "Ex: \"Je comprends que tu...\"", required: true },
             ]
         },
         {
             id: 'action',
             title: '4. Action & Insight',
-            description: 'Programme la suite et capture l’enseignement clé.',
+            description: 'Programme la suite et capture l enseignement clé.',
             fields: [
                 { name: 'actionPlan', label: 'Quel est ton plan d’action concret ?', type: 'textarea', placeholder: 'Message à envoyer, rituel à planifier...', required: true },
-                { name: 'insight', label: 'Insight clé à retenir ?', type: 'textarea', placeholder: 'Le bug racine, l’alerte à surveiller...', required: false },
+                { name: 'insight', label: 'Insight clé à retenir ?', type: 'textarea', placeholder: 'Le bug racine, l aler te à surveiller...', required: false },
             ]
         }
     ];
@@ -583,7 +511,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
             const target = event.target;
             if (!target.name) return;
             
-            // Enlever la classe d'erreur visuelle si l'utilisateur commence à taper
+            // Enlever la classe d erreur visuelle si l utilisateur commence à taper
             if (target.classList.contains('invalid')) {
                 target.classList.remove('invalid');
             }
@@ -627,7 +555,8 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         const currentStep = steps[state.stepIndex];
         if (!currentStep) return;
 
-        root.innerHTML = `
+        root.innerHTML =
+            `
             <div class="space-y-8">
                 <header class="space-y-2">
                     <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Analyse Manuelle</h2>
@@ -652,12 +581,12 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
                 </form>
 
                 <div class="wizard-actions">
-                    <button type="button" class="secondary-button" data-action="prev" ${state.stepIndex === 0 ? 'disabled' : ''}>
+                    <button type="button" class="btn btn-secondary" data-action="prev" ${state.stepIndex === 0 ? 'disabled' : ''}>
                         ← Retour
                     </button>
                     ${state.stepIndex < steps.length - 1
-                        ? `<button type="button" class="primary-button" data-action="next">Suivant →</button>`
-                        : `<button type="button" class="primary-button" data-action="save">💾 Sauvegarder</button>`
+                        ? `<button type="button" class="btn btn-primary" data-action="next">Suivant →</button>`
+                        : `<button type="button" class="btn btn-primary" data-action="save">💾 Sauvegarder</button>`
                     }
                 </div>
             </div>
@@ -668,7 +597,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
     }
 
     function renderField(field, value) {
-        // Ajout de l'attribut data-required pour le CSS
+        // Ajout de l attribut data-required pour le CSS
         const reqAttr = field.required ? 'data-required="true"' : '';
         // Classes communes
         const commonClasses = "form-input w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none";
@@ -707,7 +636,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
                 isValid = false;
                 const el = root.querySelector(`[name="${field.name}"]`);
                 if (el) {
-                    el.classList.add('invalid'); // Déclenche l'animation CSS 'shake'
+                    el.classList.add('invalid'); // Déclenche l animation CSS 'shake'
                     if (!firstError) firstError = el;
                 }
             }
@@ -720,7 +649,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
         return isValid;
     }
 
-    function validateAllSteps() {
+    function validateAllSteps() { 
         return validateCurrentStep(); 
     }
 
@@ -759,7 +688,7 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
             `Besoin associé : ${values.triggerNeed}`,
             `Réponse MVP : ${values.alternativeResponse}`,
             `Validation : ${values.validation}`,
-            `Plan d'action : ${values.actionPlan}`,
+            `Plan d action : ${values.actionPlan}`,
             values.insight ? `Insight : ${values.insight}` : null,
         ].filter(Boolean).join('\n\n');
     }
@@ -784,7 +713,7 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
         { id: 'Le Sauveur', label: 'Sauveur' },
         { id: 'Le Martyr', label: 'Martyr' },
         { id: 'Le Dernier Mot', label: 'Dernier Mot' },
-        { id: "Le Refus d'influence", label: "Refus d'influence" },
+        { id: "Le Refus d influence", label: "Refus d influence" },
     ];
 
     const state = {
@@ -800,7 +729,8 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
                 ? entries
                 : entries.filter((entry) => entry.egoFocus === state.filter);
 
-        root.innerHTML = `
+        root.innerHTML =
+            `
             <div class="space-y-6">
                 <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
@@ -842,7 +772,7 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
                 </div>
 
                 <div id="journal-list" class="space-y-4">
-                    ${
+                    ${ 
                         filteredEntries.length === 0
                             ? renderEmptyState(entries.length)
                             : filteredEntries.map(renderEntryCard).join('')
@@ -885,18 +815,18 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
                 break;
             case 'clear':
                 // 🔴 CRITICAL: Ask for confirmation before clearing ALL data
-                modal.open({
+                modal.show({
+                    targetId: 'journal-modal',
                     title: '⚠️ Vider complètement le journal ?',
-                    body: `<p>Tu vas supprimer <strong>${entries.length} entrées</strong> de manière irréversible.</p>
+                    html: `<p>Tu vas supprimer <strong>${entries.length} entrées</strong> de manière irréversible.</p>
                            <p class="mt-2 text-sm text-slate-500">Cette action ne peut pas être annulée.</p>`,
-                    buttons: [
-                        { label: 'Annuler', variant: 'secondary', action: 'cancel' },
-                        { label: 'Vider le journal', variant: 'danger', action: 'confirm' }
+                    actions: [
+                        { label: 'Annuler', variant: 'secondary', onClick: () => modal.hide('journal-modal') },
+                        { label: 'Vider le journal', variant: 'primary', onClick: () => {
+                            clearJournal();
+                            modal.hide('journal-modal');
+                        }}
                     ]
-                }).then((result) => {
-                    if (result === 'confirm') {
-                        clearJournal();
-                    }
                 });
                 break;
             case 'start-analysis':
@@ -1046,7 +976,7 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
             return `
                 <div class="journal-empty">
                     <h3 class="text-lg font-semibold mb-2">Aucune analyse enregistrée (encore).</h3>
-                    <p>Capture ta prochaine dispute pour transformer l’ego en insight exploitable.</p>
+                    <p>Capture ta prochaine dispute pour transformer l ego en insight exploitable.</p>
                     <button type="button" data-action="start-analysis">Commencer une analyse</button>
                 </div>
             `;
@@ -1055,7 +985,7 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
         return `
             <div class="journal-empty">
                 <h3 class="text-lg font-semibold mb-2">Aucun résultat pour ce filtre.</h3>
-                <p>Essaie un autre type d'ego pour revoir toutes tes entrées.</p>
+                <p>Essaie un autre type d ego pour revoir toutes tes entrées.</p>
             </div>
         `;
     }
@@ -1074,13 +1004,13 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
                 </div>
                 <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">${escapeHTML(preview)}</p>
                 <div class="journal-card-buttons">
-                    <button type="button" class="journal-card-button" data-action="view" data-entry-id="${
+                    <button type="button" class="journal-card-button" data-action="view" data-entry-id="${ 
                         entry.id
                     }">🗂️ Voir</button>
-                    <button type="button" class="journal-card-button" data-action="copy" data-entry-id="${
+                    <button type="button" class="journal-card-button" data-action="copy" data-entry-id="${ 
                         entry.id
                     }">📋 Copier</button>
-                    <button type="button" class="journal-card-button" data-action="delete" data-entry-id="${
+                    <button type="button" class="journal-card-button" data-action="delete" data-entry-id="${ 
                         entry.id
                     }">🗑️ Supprimer</button>
                 </div>
@@ -1104,14 +1034,15 @@ function createHomeModule({ rootId, store, toast, navigate }) {
         const entries = store.getAll();
         const stats = calculateJournalStats(entries);
 
-        root.innerHTML = `
+        root.innerHTML =
+            `
             <div class="space-y-8">
                 <section class="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sm:p-8 space-y-4">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
                             <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Pilotage émotionnel</h2>
                             <p class="text-slate-600 dark:text-slate-400 text-sm">
-                                Tu as ${stats.totalEntries} analyses sauvegardées. ${
+                                Tu as ${stats.totalEntries} analyses sauvegardées. ${ 
                                     stats.lastEntry
                                         ? `Dernière entrée : ${formatRelativeTime(
                                               stats.lastEntry.createdAt,
@@ -1121,10 +1052,10 @@ function createHomeModule({ rootId, store, toast, navigate }) {
                             </p>
                         </div>
                         <div class="flex gap-2 flex-wrap">
-                            <button type="button" class="primary-button text-sm" data-navigate="analyzer-manual">
+                            <button type="button" class="btn btn-primary text-sm" data-navigate="analyzer-manual">
                                 📝 Nouvelle analyse
                             </button>
-                            <button type="button" class="secondary-button text-sm" data-navigate="analyzer-ai">
+                            <button type="button" class="btn btn-secondary text-sm" data-navigate="analyzer-ai">
                                 🤖 Analyse IA
                             </button>
                         </div>
@@ -1141,7 +1072,7 @@ function createHomeModule({ rootId, store, toast, navigate }) {
                         <h3 class="text-sm font-medium text-slate-500 uppercase tracking-wide">Ego dominant</h3>
                         <div class="dashboard-metric">${stats.topEgo || '—'}</div>
                         <p class="text-sm text-slate-500 dark:text-slate-400">
-                            ${
+                            ${ 
                                 stats.topEgo
                                     ? `${stats.topEgoPercentage}% de tes analyses`
                                     : 'Analyse encore quelques cas pour obtenir un signal.'
@@ -1161,14 +1092,16 @@ function createHomeModule({ rootId, store, toast, navigate }) {
                         <p class="text-sm text-slate-500 dark:text-slate-400">3 derniers apprentissages extraits de ton journal.</p>
                     </header>
                     <div class="dashboard-list">
-                        ${
+                        ${ 
                             stats.latestEntries.length === 0
-                                ? '<p class="text-sm text-slate-500 dark:text-slate-400">Aucun insight enregistré pour l’instant.</p>'
+                                ? '<p class="text-sm text-slate-500 dark:text-slate-400">Aucun insight enregistré pour l instant.</p>'
                                 : stats.latestEntries
                                       .map(
-                                          (entry) => `
+                                          (
+                                              entry,
+                                          ) => `
                                     <div class="dashboard-list-item">
-                                        <strong>${formatRelativeTime(entry.createdAt)} · ${
+                                        <strong>${formatRelativeTime(entry.createdAt)} · ${ 
                                               entry.egoFocus
                                           }</strong>
                                         <p class="text-sm text-slate-600 dark:text-slate-300">${escapeHTML(extractInsight(entry))}</p>
@@ -1182,13 +1115,13 @@ function createHomeModule({ rootId, store, toast, navigate }) {
                 </section>
 
                 <section class="dashboard-card space-y-3">
-                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Raccourcis d’intervention</h3>
+                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Raccourcis d intervention</h3>
                     <div class="grid gap-2 sm:grid-cols-2">
                         ${[
                             {
-                                label: 'Plan d’urgence (Pause)',
+                                label: 'Plan d urgence (Pause)',
                                 body: 'Respiration, cadrage, script radicaux de validation.',
-                                target: 'home',
+                                target: 'analyzer-quick',
                                 toast: 'Astuce : fabrique ton kit de crise dans le Dojo.',
                             },
                             {
@@ -1199,7 +1132,7 @@ function createHomeModule({ rootId, store, toast, navigate }) {
                             },
                             {
                                 label: 'Booster ton Intégration',
-                                body: 'Utilise l’IA pour analyser un message chaud.',
+                                body: 'Utilise l IA pour analyser un message chaud.',
                                 target: 'analyzer-ai',
                                 toast: null,
                             },
@@ -1211,8 +1144,10 @@ function createHomeModule({ rootId, store, toast, navigate }) {
                             },
                         ]
                             .map(
-                                (card) => `
-                                    <button type="button" class="journal-card-button justify-between text-left" data-navigate="${card.target}" ${
+                                (
+                                    card,
+                                ) => `
+                                    <button type="button" class="journal-card-button justify-between text-left" data-navigate="${card.target}" ${ 
                                         card.toast ? `data-toast="${card.toast}"` : ''
                                     }>
                                         <span>
@@ -1441,7 +1376,7 @@ function createGeminiService({ encryptor, toast }) {
                     body: JSON.stringify(requestBody),
                 });
             } catch (error) {
-                throw createError('NETWORK', "L'appel Gemini a échoué.", { cause: error });
+                throw createError('NETWORK', "L appel Gemini a échoué.", { cause: error });
             }
 
             const quota = readQuotaHeaders(response.headers);
@@ -1563,7 +1498,7 @@ function createOllamaService({ toast }) {
                 body: JSON.stringify(requestBody),
             });
         } catch (error) {
-            throw new Error(`Impossible de contacter Ollama sur ${config.endpoint}. Assure-toi qu'Ollama est lancé.`);
+            throw new Error(`Impossible de contacter Ollama sur ${config.endpoint}. Assure-toi qu Ollama est lancé.`);
         }
 
         if (!response.ok) {
@@ -1685,16 +1620,16 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                         ⚠ Gemini non configuré
                    </span>`;
             const cooldownInfo = geminiStatus.cooldown
-                ? `<p class="text-xs text-amber-500">Pause jusqu'à ${formatCountdown(geminiStatus.cooldown)}</p>`
+                ? `<p class="text-xs text-amber-500">Pause jusqu à ${formatCountdown(geminiStatus.cooldown)}</p>`
                 : '';
             statusInfo = `${statusBadge}${cooldownInfo}`;
-            configButtons = '<button type="button" class="secondary-button text-sm" data-action="configure-gemini">⚙️ Config Gemini</button>';
+            configButtons = '<button type="button" class="btn btn-secondary text-sm" data-action="configure-gemini">⚙️ Config Gemini</button>';
         } else if (currentProvider === 'ollama') {
             statusInfo = `<span class="inline-flex items-center gap-2 rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-xs font-semibold">
                     🤖 Ollama • ${ollamaConfig.model}
                </span>
                <p class="text-xs text-slate-500">${ollamaConfig.endpoint}</p>`;
-            configButtons = '<button type="button" class="secondary-button text-sm" data-action="configure-ollama">⚙️ Config Ollama</button>';
+            configButtons = '<button type="button" class="btn btn-secondary text-sm" data-action="configure-ollama">⚙️ Config Ollama</button>';
         } else {
             statusInfo = `<span class="inline-flex items-center gap-2 rounded-full bg-slate-100 text-slate-700 px-3 py-1 text-xs font-semibold">
                     📊 Analyse locale (heuristique)
@@ -1702,12 +1637,13 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                <p class="text-xs text-slate-500">Aucune IA externe • Gratuit</p>`;
         }
 
-        root.innerHTML = `
+        root.innerHTML =
+            `
             <div class="space-y-6">
                 <header class="space-y-3">
                     <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Analyse IA</h2>
                     <p class="text-slate-600 dark:text-slate-400 text-sm">
-                        Parse un message ou une situation pour obtenir des scripts prêts à l'emploi.
+                        Parse un message ou une situation pour obtenir des scripts prêts à l emploi.
                     </p>
 
                     <div class="form-group">
@@ -1724,7 +1660,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                             ${statusInfo}
                         </div>
                         <div class="flex gap-2">
-                            <button type="button" class="secondary-button text-sm" data-action="test-provider" title="Tester si ce provider fonctionne">
+                            <button type="button" class="btn btn-secondary text-sm" data-action="test-provider" title="Tester si ce provider fonctionne">
                                 🧪 Tester
                             </button>
                             ${configButtons}
@@ -1740,7 +1676,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
 
                     <div class="ai-dropzone" data-dropzone>
                         <p class="text-sm text-slate-500 dark:text-slate-400">
-                            Glisse-dépose une capture (optionnel) — la fonctionnalité multimodale arrive avec l’API Gemini.
+                            Glisse-dépose une capture (optionnel) — la fonctionnalité multimodale arrive avec l API Gemini.
                         </p>
                         <input type="file" accept="image/*" data-file-input class="hidden" multiple>
                         <button type="button" class="journal-card-button mt-3" data-action="trigger-file">
@@ -1750,10 +1686,10 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                     </div>
 
                     <div class="flex flex-wrap gap-3">
-                        <button type="button" class="primary-button" data-action="analyze">
+                        <button type="button" class="btn btn-primary" data-action="analyze">
                             <span class="analyze-label">Analyser la situation</span>
                         </button>
-                        <button type="button" class="secondary-button" data-action="reset">
+                        <button type="button" class="btn btn-secondary" data-action="reset">
                             Réinitialiser
                         </button>
                     </div>
@@ -1813,19 +1749,19 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                     case 'reset':
                         // 🔴 CRITICAL: Ask for confirmation if textarea has content
                         if (textarea.value.trim()) {
-                            modal.open({
-                                title: '⚠️ Réinitialiser l\'analyse ?',
-                                body: `<p>Tu vas perdre ton message en cours.</p>
+                            modal.show({
+                                targetId: 'ai-modal',
+                                title: '⚠️ Réinitialiser l analyse ?',
+                                html: `<p>Tu vas perdre ton message en cours.</p>
                                        <p class="mt-2 text-sm text-slate-500">Les images seront aussi supprimées.</p>`,
-                                buttons: [
-                                    { label: 'Annuler', variant: 'secondary', action: 'cancel' },
-                                    { label: 'Réinitialiser', variant: 'danger', action: 'confirm' }
+                                actions: [
+                                    { label: 'Annuler', variant: 'secondary', onClick: () => modal.hide('ai-modal') },
+                                    { label: 'Réinitialiser', variant: 'primary', onClick: () => {
+                                        reset();
+                                        modal.hide('ai-modal');
+                                        toast.info('Analyse réinitialisée.');
+                                    }}
                                 ]
-                            }).then((result) => {
-                                if (result === 'confirm') {
-                                    reset();
-                                    toast.info('Analyse réinitialisée.');
-                                }
                             });
                         } else {
                             reset();
@@ -1858,7 +1794,9 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
             thumbnails.innerHTML = files
                 .slice(0, 4)
                 .map(
-                    (file) => `
+                    (
+                        file,
+                    ) => `
                         <span class="badge">${escapeHTML(file.name)}</span>
                     `,
                 )
@@ -1945,7 +1883,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
             console.debug('Gemini error', error);
             switch (error.code) {
                 case 'NO_KEY':
-                    toast.info('Configure la clé Gemini pour activer l’IA.');
+                    toast.info('Configure la clé Gemini pour activer l IA.');
                     openGeminiModal();
                     break;
                 case 'INVALID_KEY':
@@ -1961,716 +1899,16 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                     break;
                 }
                 case 'PARSE_ERROR':
-                    toast.warning('Réponse Gemini inattendue. Utilisation de l’heuristique.');
+                    toast.warning('Réponse Gemini inattendue. Utilisation de l heuristique.');
                     break;
-                case 'NETWORK':
-                case 'API_ERROR':
-                    toast.warning('API Gemini indisponible. Analyse locale utilisée.');
-                    break;
-                default:
-                    toast.warning("Analyse Gemini interrompue. Fallback heuristique.");
             }
-            const fallback = runLocalHeuristics(promptText);
-            fallback.source = 'heuristic';
-            return fallback;
-        }
-
-        async function testProvider() {
-            const currentProvider = getAIProvider();
-            const testButton = root.querySelector('[data-action="test-provider"]');
-            if (!testButton) return;
-
-            // Save button state
-            const originalText = testButton.textContent;
-            const wasDisabled = testButton.disabled;
-
-            // Disable button and show loading state
-            testButton.disabled = true;
-            testButton.textContent = '⏳ Test en cours...';
-
-            try {
-                if (currentProvider === 'gemini') {
-                    const status = gemini.getKeyStatus();
-                    if (!status.configured) {
-                        toast.error('❌ Gemini non configuré. Configure-le d\'abord.');
-                        return;
-                    }
-                    if (status.cooldown) {
-                        const until = formatCountdown(status.cooldown);
-                        toast.warning(`⏸️ Gemini en cooldown jusqu'à ${until}`);
-                        return;
-                    }
-
-                    // Test avec un prompt simple
-                    try {
-                        const testPrompt = 'Test rapide: dis moi juste "ok" si tu reçois ce message.';
-                        const result = await gemini.fetchAnalysis(testPrompt);
-                        toast.success('✅ Gemini fonctionne ! Prêt à l\'utiliser.');
-                    } catch (error) {
-                        const errorMsg = error.message || error.code || 'Erreur inconnue';
-                        let userMessage = '❌ Erreur Gemini: ';
-
-                        if (error.code === 'INVALID_KEY') {
-                            userMessage += 'Clé API invalide. Vérifie ta clé dans les paramètres.';
-                        } else if (error.code === 'QUOTA') {
-                            userMessage += `Quota atteint. ${errorMsg}`;
-                        } else if (error.code === 'NETWORK') {
-                            userMessage += 'Pas de connexion Internet.';
-                        } else if (error.code === 'API_ERROR') {
-                            userMessage += 'L\'API Gemini ne répond pas.';
-                        } else {
-                            userMessage += errorMsg;
-                        }
-                        toast.error(userMessage);
-                    }
-                } else if (currentProvider === 'ollama') {
-                    try {
-                        const config = ollama.getConfig();
-                        const testPrompt = 'Test rapide: dis moi juste "ok" si tu reçois ce message.';
-                        const result = await ollama.fetchAnalysis(testPrompt);
-                        toast.success(`✅ Ollama fonctionne ! Modèle: ${config.model}`);
-                    } catch (error) {
-                        const errorMsg = error.message || 'Erreur inconnue';
-                        let userMessage = '❌ Erreur Ollama: ';
-
-                        if (errorMsg.includes('contacter Ollama')) {
-                            const config = ollama.getConfig();
-                            userMessage += `Ollama ne répond pas sur ${config.endpoint}. Lance Ollama en local.`;
-                        } else if (errorMsg.includes('429')) {
-                            userMessage += 'Trop de requêtes. Patiente avant de relancer.';
-                        } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
-                            userMessage += 'Authentification refusée.';
-                        } else {
-                            userMessage += errorMsg;
-                        }
-                        toast.error(userMessage);
-                    }
-                } else {
-                    // Heuristic
-                    const result = runLocalHeuristics('test');
-                    toast.success('✅ Analyse locale (heuristique) fonctionne.');
-                }
-            } catch (error) {
-                console.error('Test provider error:', error);
-                toast.error('❌ Erreur lors du test du provider.');
-            } finally {
-                // Restore button state
-                testButton.disabled = wasDisabled;
-                testButton.textContent = originalText;
-            }
-        }
-
-        function setResult(result, originalPrompt = '') {
-            if (!result) return;
-            state.lastResult = result;
-            const container = root.querySelector('#ai-results');
-            if (!container) return;
-            container.classList.remove('hidden');
-
-            // 🔴 QUALITY GUARD: Validate response quality
-            const validation = validateResponse(result, originalPrompt);
-            let validationBadge = '';
-
-            if (!validation.valid) {
-                const issues = formatValidationIssues(validation);
-                validationBadge = `
-                    <div class="mb-3 p-3 rounded-lg ${
-                        issues.type === 'error' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200' :
-                        issues.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-200' :
-                        'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200'
-                    }">
-                        <div class="flex items-center gap-2 font-medium">
-                            <span>${issues.icon}</span>
-                            <span>${issues.message}</span>
-                        </div>
-                        ${issues.details ? `<ul class="text-xs mt-2 space-y-1 ml-6">
-                            ${issues.details.map(d => `<li>• ${d}</li>`).join('')}
-                        </ul>` : ''}
-                    </div>
-                `;
-            }
-
-            const safeTakeaways =
-                Array.isArray(result.takeaways) && result.takeaways.length > 0
-                    ? result.takeaways
-                    : ['Analyse locale : reprends la validation émotionnelle avant de répondre.'];
-            const safeOptions =
-                Array.isArray(result.options) && result.options.length > 0
-                    ? result.options
-                    : [
-                          {
-                              objective: 'Désescalade',
-                              script:
-                                  "Je t'entends, je veux qu'on reprenne calmement. Donne-moi 15 minutes et je reviens avec un plan clair.",
-                          },
-                      ];
-
-            let title = 'Analyse locale';
-            let badgeClass = 'bg-slate-200 text-slate-700 dark:bg-slate-700/80 dark:text-slate-200';
-            let badgeLabel = 'Heuristique';
-
-            if (result.source === 'gemini') {
-                title = 'Analyse Gemini';
-                badgeClass = 'bg-emerald-100 text-emerald-700';
-                badgeLabel = 'Gemini';
-            } else if (result.source === 'ollama') {
-                title = `Analyse Ollama (${result.model || 'LLM'})`;
-                badgeClass = 'bg-blue-100 text-blue-700';
-                badgeLabel = 'Ollama';
-            }
-            const quotaInfo = result.quota
-                ? `<div class="text-xs text-slate-500 dark:text-slate-400 flex gap-2">
-                        <span>Quota restant : ${
-                            typeof result.quota.remaining === 'number'
-                                ? result.quota.remaining
-                                : '—'
-                        }/${result.quota.limit ?? '—'}</span>
-                        ${
-                            result.quota.resetMs
-                                ? `<span>Reset ${
-                                      formatCountdown(result.quota.resetMs)
-                                  }</span>`
-                                : ''
-                        }
-                   </div>`
-                : '';
-
-            container.innerHTML = `
-                <div class="space-y-4">
-                    ${validationBadge}
-                    <header class="space-y-2">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">${title}</h3>
-                            <span class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold rounded-full ${badgeClass}">
-                                ${badgeLabel}
-                            </span>
-                        </div>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">${escapeHTML(
-                            result.meta || '',
-                        )}</p>
-                        ${quotaInfo}
-                    </header>
-                    <article class="space-y-3">
-                        <h4 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Insights clés</h4>
-                        <ul class="list-disc pl-5 space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                            ${safeTakeaways
-                                .map((item) => `<li>${escapeHTML(item)}</li>`)
-                                .join('')}
-                        </ul>
-                    </article>
-                    <article class="space-y-3">
-                        <h4 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Scripts proposés</h4>
-                        <div class="space-y-3">
-                            ${safeOptions
-                                .map(
-                                    (option) => `
-                                        <div class="journal-card">
-                                            <div class="flex justify-between items-center mb-2">
-                                                <span class="badge">${escapeHTML(
-                                                    option.objective || 'Option',
-                                                )}</span>
-                                                <button type="button" class="journal-card-button" data-copy-text="${escapeHTML(
-                                                    option.script || '',
-                                                )}" data-toast-success="Script copié.">
-                                                    📋 Copier
-                                                </button>
-                                            </div>
-                                            <p class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">
-                                                ${escapeHTML(option.script || '')}
-                                            </p>
-                                        </div>
-                                    `,
-                                )
-                                .join('')}
-                        </div>
-                    </article>
-                </div>
-            `;
-        }
-
-        function setLoading(isLoading) {
-            state.isLoading = isLoading;
-            const button = root.querySelector('[data-action="analyze"]');
-            if (!button) return;
-            button.disabled = isLoading;
-            button.classList.toggle('opacity-70', isLoading);
-            const label = button.querySelector('.analyze-label');
-            if (label) {
-                label.textContent = isLoading
-                    ? 'Analyse en cours...'
-                    : 'Analyser la situation';
-            }
-        }
-
-        function openGeminiModal() {
-            const status = gemini.getKeyStatus();
-            const html = `
-                <form id="gemini-config-form" class="space-y-4">
-                    <div class="form-group">
-                        <label for="gemini-key">Clé API Gemini</label>
-                        <input type="password" id="gemini-key" name="gemini-key" class="form-input" placeholder="AIza..." autocomplete="off">
-                        <p class="form-helper">
-                            La clé est stockée chiffrée sur cet appareil${
-                                status.hint ? ` (actuelle : ****${status.hint})` : ''
-                            }.
-                        </p>
-                    </div>
-                </form>
-            `;
-
-            const actions = [
-                {
-                    label: status.configured ? 'Mettre à jour' : 'Enregistrer',
-                    variant: 'primary',
-                    onClick: async () => {
-                        const form = document.getElementById('gemini-config-form');
-                        const input = form?.querySelector('#gemini-key');
-                        const value = input?.value.trim();
-                        if (!value) {
-                            toast.error('Colle ta clé Gemini avant de valider.');
-                            input?.focus();
-                            return;
-                        }
-                        try {
-                            await gemini.saveKey(value);
-                            toast.success('Clé Gemini enregistrée.');
-                            modal.hide('gemini-modal');
-                        } catch (error) {
-                            toast.error(error.message || 'Impossible de sauvegarder la clé.');
-                        }
-                    },
-                },
-            ];
-
-            if (status.configured) {
-                actions.push({
-                    label: 'Supprimer la clé',
-                    variant: 'secondary',
-                    onClick: async () => {
-                        await gemini.deleteKey();
-                        toast.info('Clé Gemini supprimée.');
-                        modal.hide('gemini-modal');
-                    },
-                });
-            }
-
-            actions.push({
-                label: 'Fermer',
-                onClick: () => modal.hide('gemini-modal'),
-            });
-
-            modal.show({
-                targetId: 'gemini-modal',
-                title: 'Configuration Gemini',
-                html,
-                actions,
-            });
-        }
-
-        function openOllamaModal() {
-            const config = ollama.getConfig();
-            const html = `
-                <form id="ollama-config-form" class="space-y-4">
-                    <div class="form-group">
-                        <label for="ollama-endpoint">Endpoint Ollama</label>
-                        <input type="text" id="ollama-endpoint" name="ollama-endpoint" value="${escapeHTML(config.endpoint)}" class="form-input" placeholder="http://localhost:11434">
-                        <p class="form-helper">
-                            URL de ton serveur Ollama local (par défaut http://localhost:11434)
-                        </p>
-                    </div>
-                    <div class="form-group">
-                        <label for="ollama-model">Modèle</label>
-                        <input type="text" id="ollama-model" name="ollama-model" value="${escapeHTML(config.model)}" class="form-input" placeholder="llama3.2">
-                        <p class="form-helper">
-                            Nom du modèle Ollama à utiliser (ex: llama3.2, mistral, qwen2.5:7b)
-                        </p>
-                    </div>
-                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm">
-                        <p class="text-blue-900 dark:text-blue-100 font-semibold mb-2">💡 Installation Ollama</p>
-                        <p class="text-blue-700 dark:text-blue-300 text-xs leading-relaxed">
-                            Pour installer : <code class="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded font-mono">brew install ollama</code><br>
-                            Puis lancer : <code class="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded font-mono">ollama run llama3.2</code>
-                        </p>
-                    </div>
-                </form>
-            `;
-
-            const actions = [
-                {
-                    label: 'Enregistrer',
-                    variant: 'primary',
-                    onClick: () => {
-                        const form = document.getElementById('ollama-config-form');
-                        const endpointInput = form?.querySelector('#ollama-endpoint');
-                        const modelInput = form?.querySelector('#ollama-model');
-                        const endpoint = endpointInput?.value.trim() || OLLAMA_DEFAULTS.endpoint;
-                        const model = modelInput?.value.trim() || OLLAMA_DEFAULTS.model;
-
-                        ollama.saveConfig(endpoint, model);
-                        toast.success('Configuration Ollama sauvegardée.');
-                        modal.hide('ollama-modal');
-                        render();
-                    },
-                },
-                {
-                    label: 'Fermer',
-                    onClick: () => modal.hide('ollama-modal'),
-                },
-            ];
-
-            modal.show({
-                targetId: 'ollama-modal',
-                title: 'Configuration Ollama',
-                html,
-                actions,
-            });
         }
     }
-
-    return { render };
 }
 
-function createGuideModule({ rootId, toast, dojo, modal }) {
-    const root = document.getElementById(rootId);
-    if (!root) {
-        console.warn(`Racine guide "${rootId}" introuvable.`);
-        return { render: () => {} };
-    }
-
-    function render() {
-        root.innerHTML = `
-            <div class="space-y-6">
-                <header>
-                    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Playbook & Entraînement</h2>
-                    <p class="text-slate-600 dark:text-slate-400 text-sm">
-                        Les fondamentaux + ton simulateur de vol : Dojo d'entraînement pour les egos.
-                    </p>
-                </header>
-
-                <div class="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6">
-                    <div class="flex items-center gap-4">
-                        <div class="text-4xl">🧗</div>
-                        <div class="flex-1">
-                            <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">Démarrer le Dojo</h3>
-                            <p class="text-sm text-slate-600 dark:text-slate-400">
-                                Entraîne-toi sur 5 scénarios réels. Vois ta réponse sous ego, puis l'antidote.
-                            </p>
-                        </div>
-                        <button type="button" class="primary-button" id="dojo-button">
-                            Démarrer →
-                        </button>
-                    </div>
-                </div>
-
-                <section class="dashboard-card space-y-4">
-                    <header>
-                        <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">System Prompt (Persona IA)</h3>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">
-                            Brief initial pour garder la même dynamique lors d’un échange avec ton IA préférée.
-                        </p>
-                    </header>
-                    <pre class="bg-slate-900 dark:bg-slate-950 text-slate-100 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre-wrap leading-relaxed">${escapeHTML(
-                        getSystemPromptExcerpt(),
-                    )}</pre>
-                    <button type="button" class="primary-button self-start" data-copy-text="${escapeHTML(
-                        getSystemPromptExcerpt(),
-                    )}" data-toast-success="Persona copié.">
-                        📋 Copier la persona
-                    </button>
-                </section>
-
-                <section class="dashboard-card space-y-4">
-                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Glossaire Ego Radar</h3>
-                    <div class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                        ${renderGlossary()}
-                    </div>
-                </section>
-
-                <section class="dashboard-card space-y-4">
-                    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Framework de réponse MVP</h3>
-                    <ol class="list-decimal pl-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-                        <li>Pause et respiration (30s) pour recharger ton cortex.</li>
-                        <li>Valide explicitement la frustration ou la peur exprimée.</li>
-                        <li>Réponds au besoin métier (User Story) en une proposition concrète.</li>
-                        <li>Propose la suite : MVP livré + itération planifiée.</li>
-                    </ol>
-                </section>
-            </div>
-        `;
-    }
-
-    function getSystemPromptExcerpt() {
-        return `Tu es un Coach & Analyste en communication de crise interpersonnelle. Ta méthodologie : 
-1. Valider l'émotion.
-2. Diagnostiquer l'ego (Défensive, Sauveur, Martyr, Dernier Mot, Refus d'influence).
-3. Identifier le besoin caché (user story).
-4. Proposer 2-3 scripts de réponse (objectif : désescalade, limite, alignement produit).`;
-    }
-
-    function renderGlossary() {
-        const items = [
-            {
-                label: 'La Défensive',
-                description:
-                    "Réflexe de justification instantanée. Antidote : accepter le feedback sans contre-attaque, 2 phrases maximum.",
-            },
-            {
-                label: 'Le Sauveur',
-                description:
-                    "Tu veux réparer au lieu d'écouter. Antidote : active la validation radicale avant de proposer un plan.",
-            },
-            {
-                label: 'Le Martyr',
-                description:
-                    'Tu fais la comptabilité de tes efforts. Antidote : traite chaque sujet comme une user story indépendante.',
-            },
-            {
-                label: 'Le Dernier Mot',
-                description:
-                    'Besoin de gagner le débat logique. Antidote : silence stratégique, puis question ouverte.',
-            },
-            {
-                label: "Refus d'influence",
-                description:
-                    "Tu rejètes la méthode de l'autre par principe. Antidote : tester sa proposition 24h en mode MVP.",
-            },
-        ];
-
-        return items
-            .map(
-                (item) => `
-                    <div>
-                        <strong class="text-slate-800 dark:text-slate-100">${item.label}</strong>
-                        <p>${item.description}</p>
-                    </div>
-                `,
-            )
-            .join('');
-    }
-
-    // Setup event listeners after render
-    function attachListeners() {
-        const dojoButton = root?.querySelector('#dojo-button');
-        if (dojoButton) {
-            dojoButton.addEventListener('click', () => {
-                if (dojo) dojo.open();
-            });
-        }
-    }
-
-    const originalRender = render;
-    render = function () {
-        originalRender();
-        attachListeners();
-    };
-
-    return { render };
-}
-
-// --- Store ---
-
-function createJournalStore(storageKey, toast) {
-    const fallback = [];
-
-    function getAll() {
-        try {
-            const raw = localStorage.getItem(storageKey);
-            if (!raw) return [...fallback];
-            const parsed = JSON.parse(raw);
-            if (!Array.isArray(parsed)) return [...fallback];
-            return parsed.sort(
-                (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-            );
-        } catch (error) {
-            console.debug('Lecture du journal impossible :', error);
-            return [...fallback];
-        }
-    }
-
-    function saveAll(entries) {
-        try {
-            localStorage.setItem(storageKey, JSON.stringify(entries));
-            return true;
-        } catch (error) {
-            console.debug('Écriture du journal impossible :', error);
-            fallback.length = 0;
-            fallback.push(...entries);
-            toast?.warning?.('Stockage local indisponible, données conservées en mémoire.');
-            return false;
-        }
-    }
-
-    function saveEntry(entry) {
-        const entries = getAll();
-        entries.unshift(entry);
-        const success = saveAll(entries);
-        return success
-            ? { success: true, entry }
-            : { success: false, message: 'Impossible de persister cette analyse.' };
-    }
-
-    function deleteEntry(entryId) {
-        const entries = getAll();
-        const nextEntries = entries.filter((entry) => entry.id !== entryId);
-        if (nextEntries.length === entries.length) {
-            return { success: false, message: 'Entrée introuvable.' };
-        }
-        saveAll(nextEntries);
-        return { success: true };
-    }
-
-    function clear() {
-        saveAll([]);
-    }
-
-    function getById(entryId) {
-        return getAll().find((entry) => entry.id === entryId) || null;
-    }
-
-    function importEntries(list) {
-        const sanitized = list
-            .filter((entry) => entry && entry.id && entry.createdAt)
-            .map((entry) => ({
-                ...entry,
-                createdAt: entry.createdAt,
-            }));
-        const current = getAll();
-        const merged = [...sanitized, ...current].reduce((map, entry) => {
-            map.set(entry.id, entry);
-            return map;
-        }, new Map());
-        const nextEntries = Array.from(merged.values()).sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        saveAll(nextEntries);
-        return { success: true, count: sanitized.length };
-    }
-
-    return {
-        getAll,
-        saveEntry,
-        deleteEntry,
-        clear,
-        getById,
-        importEntries,
-    };
-}
-
-// --- Utils & Helpers ---
-
-function createLocalEncryptor() {
-    const subtle = window.crypto?.subtle;
-    const isSecureContext = window.isSecureContext ?? true;
-    const hasSubtle = Boolean(subtle);
-
-    // 🔴 CRITICAL: Refuse to proceed without proper WebCrypto support
-    if (!hasSubtle || !isSecureContext) {
-        const errorMsg = !hasSubtle
-            ? 'WebCrypto API non disponible - Chiffrement AES-GCM requis'
-            : 'Contexte non sécurisé (HTTPS requis) - Chiffrement impossibilisé';
-
-        SecureLogger.error('SECURITY: ' + errorMsg, {
-            hasSubtle,
-            isSecureContext,
-            isHTTPS: window.location.protocol === 'https:',
-            isLocalhost: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
-        });
-
-        // Provide helpful message to user
-        console.warn(
-            '%c⚠️ SÉCURITÉ',
-            'color: #ff6b6b; font-weight: bold; font-size: 14px;',
-            errorMsg
-        );
-
-        if (!isSecureContext && window.location.protocol !== 'file:') {
-            console.warn('💡 Pour développement local: Utilisez http://localhost:8080 au lieu de file://');
-        }
-
-        // Return stub that throws on usage
-        return {
-            isFallback: false,
-            async encrypt() {
-                throw new Error('Chiffrement AES-GCM obligatoire - Contexte non sécurisé');
-            },
-            async decrypt() {
-                throw new Error('Déchiffrement AES-GCM obligatoire - Contexte non sécurisé');
-            },
-        };
-    }
-
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    let cryptoKeyPromise = null;
-
-    async function getCryptoKey() {
-        if (cryptoKeyPromise) return cryptoKeyPromise;
-        cryptoKeyPromise = (async () => {
-            try {
-                const stored = localStorage.getItem(GEMINI_STORAGE_KEYS.secret);
-                if (stored) {
-                    const raw = fromBase64(stored);
-                    return await subtle.importKey(
-                        'raw',
-                        raw,
-                        { name: 'AES-GCM' },
-                        false,
-                        ['encrypt', 'decrypt'],
-                    );
-                }
-            } catch (error) {
-                console.debug('Lecture clé AES échouée.', error);
-            }
-            const rawKey = window.crypto.getRandomValues(new Uint8Array(32));
-            try {
-                localStorage.setItem(GEMINI_STORAGE_KEYS.secret, toBase64(rawKey.buffer));
-            } catch (error) {
-                console.debug('Impossible de stocker la clé AES.', error);
-            }
-            return subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, [
-                'encrypt',
-                'decrypt',
-            ]);
-        })();
-        return cryptoKeyPromise;
-    }
-
-    return {
-        isFallback: false,
-        async encrypt(plainText) {
-            const key = await getCryptoKey();
-            const iv = window.crypto.getRandomValues(new Uint8Array(12));
-            const cipherBuffer = await subtle.encrypt(
-                {
-                    name: 'AES-GCM',
-                    iv,
-                },
-                key,
-                encoder.encode(plainText),
-            );
-            return {
-                cipher: toBase64(cipherBuffer),
-                iv: toBase64(iv.buffer),
-                createdAt: new Date().toISOString(),
-            };
-        },
-        async decrypt(payload) {
-            const key = await getCryptoKey();
-            const cipher = fromBase64(payload.cipher || '');
-            const iv = payload.iv ? fromBase64(payload.iv) : new Uint8Array(12);
-            const plainBuffer = await subtle.decrypt(
-                {
-                    name: 'AES-GCM',
-                    iv,
-                },
-                key,
-                cipher.buffer,
-            );
-            return decoder.decode(plainBuffer);
-        },
-    };
-}
-
+/**
+ * Toast Manager - Gestion centralisée des notifications
+ */
 function createToastManager(rootId = 'toast-root') {
     const root = document.getElementById(rootId);
     if (!root) {
@@ -2755,6 +1993,10 @@ function createToastManager(rootId = 'toast-root') {
     };
 }
 
+/**
+ * Modal Manager - Gestion centralisée des modales
+ * API standardisée: show() et hide()
+ */
 function createModalManager() {
     const active = new Map();
 
@@ -2838,294 +2080,3 @@ function createModalManager() {
 
     return { show, hide };
 }
-
-function buildGeminiRequest(prompt) {
-    return {
-        systemInstruction: {
-            role: 'system',
-            parts: [{ text: GEMINI_SYSTEM_PROMPT }],
-        },
-        contents: [
-            {
-                role: 'user',
-                parts: [{ text: prompt }],
-            },
-        ],
-        generationConfig: {
-            temperature: 0.65,
-            topP: 0.9,
-            topK: 32,
-            maxOutputTokens: 1024,
-        },
-    };
-}
-
-function parseGeminiResponse(data) {
-    const candidates = data?.candidates;
-    if (!Array.isArray(candidates) || candidates.length === 0) {
-        throw new Error('Réponse Gemini vide.');
-    }
-
-    const parts = candidates
-        .map((candidate) => candidate?.content?.parts || [])
-        .flat()
-        .map((part) => part?.text || '')
-        .filter(Boolean);
-
-    if (!parts.length) {
-        throw new Error('Réponse Gemini sans texte.');
-    }
-
-    const rawText = parts.join('').trim();
-    if (!rawText) {
-        throw new Error('Texte Gemini vide.');
-    }
-
-    let parsed;
-    try {
-        parsed = JSON.parse(rawText);
-    } catch (error) {
-        throw new Error('Réponse Gemini non JSON.');
-    }
-
-    parsed.meta = typeof parsed.meta === 'string' ? parsed.meta : '';
-    parsed.takeaways = Array.isArray(parsed.takeaways) ? parsed.takeaways : [];
-    parsed.options = Array.isArray(parsed.options) ? parsed.options : [];
-    return parsed;
-}
-
-function readQuotaHeaders(headers) {
-    if (!headers?.get) return null;
-    const limitHeader = headers.get('x-ratelimit-limit');
-    const remainingHeader = headers.get('x-ratelimit-remaining');
-    const limit = limitHeader != null ? Number.parseInt(limitHeader, 10) : null;
-    const remaining = remainingHeader != null ? Number.parseInt(remainingHeader, 10) : null;
-    const resetHeader = headers.get('x-ratelimit-reset') || headers.get('x-ratelimit-reset-ms');
-    let resetMs = null;
-    if (resetHeader) {
-        const resetValue = Number.parseInt(resetHeader, 10);
-        if (!Number.isNaN(resetValue)) {
-            resetMs = resetValue > COOLDOWN_DEFAULTS.timestampThreshold ? resetValue : resetValue * 1000;
-        }
-    }
-    const hasLimit = limit != null && !Number.isNaN(limit);
-    const hasRemaining = remaining != null && !Number.isNaN(remaining);
-    const hasReset = resetMs != null && !Number.isNaN(resetMs);
-    if (!hasLimit && !hasRemaining && !hasReset) {
-        return null;
-    }
-    return {
-        limit: hasLimit ? limit : null,
-        remaining: hasRemaining ? remaining : null,
-        resetMs,
-    };
-}
-
-function formatCountdown(timestamp) {
-    const diff = Math.max(0, timestamp - Date.now());
-    const seconds = Math.round(diff / 1000);
-    if (seconds <= 1) return 'dans 1 seconde';
-    if (seconds < 60) return `dans ${seconds}s`;
-    const minutes = Math.round(seconds / 60);
-    if (minutes < 60) return `dans ${minutes} min`;
-    const hours = Math.round(minutes / 60);
-    if (hours < 48) return `dans ${hours} h`;
-    const days = Math.round(hours / 24);
-    return `dans ${days} j`;
-}
-
-function toBase64(buffer) {
-    const uint8Array = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
-    let binary = '';
-    uint8Array.forEach((byte) => {
-        binary += String.fromCharCode(byte);
-    });
-    return btoa(binary);
-}
-
-function fromBase64(value) {
-    const binary = atob(value);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i += 1) {
-        bytes[i] = binary.charCodeAt(i);
-    }
-    return bytes;
-}
-
-function copyTextToClipboard(text) {
-    const value = text ?? '';
-    if (!value) {
-        return Promise.reject(new Error('Texte vide'));
-    }
-
-    if (navigator.clipboard?.writeText) {
-        return navigator.clipboard.writeText(value);
-    }
-
-    return new Promise((resolve, reject) => {
-        const textarea = document.createElement('textarea');
-        textarea.value = value;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        textarea.style.pointerEvents = 'none';
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-
-        try {
-            const success = document.execCommand('copy');
-            if (!success) throw new Error('execCommand a échoué');
-            resolve(true);
-        } catch (error) {
-            reject(error);
-        } finally {
-            document.body.removeChild(textarea);
-        }
-    });
-}
-
-function autoResizeTextarea(textarea) {
-    if (!textarea) return;
-    textarea.style.height = 'auto';
-    textarea.style.height = `${textarea.scrollHeight}px`;
-}
-
-function calculateJournalStats(entries) {
-    const totalEntries = entries.length;
-    const lastEntry = entries[0] || null;
-    const egoCounts = entries.reduce((map, entry) => {
-        const key = entry.egoFocus || 'Indéfini';
-        map[key] = (map[key] || 0) + 1;
-        return map;
-    }, {});
-
-    let topEgo = null;
-    let topCount = 0;
-    Object.entries(egoCounts).forEach(([ego, count]) => {
-        if (count > topCount) {
-            topEgo = ego;
-            topCount = count;
-        }
-    });
-
-    const defensiveEntries = entries.filter(
-        (entry) => (entry.egoFocus || '').toLowerCase().includes('défensive'),
-    );
-    const lastDefensive = defensiveEntries[0] || null;
-    const daysSinceDefensive = lastDefensive
-        ? Math.max(
-              0,
-              Math.round(
-                  (Date.now() - new Date(lastDefensive.createdAt).getTime()) /
-                      (1000 * 60 * 60 * 24),
-              ),
-          )
-        : null;
-
-    return {
-        totalEntries,
-        lastEntry,
-        topEgo,
-        topEgoPercentage:
-            totalEntries > 0 ? Math.round((topCount / totalEntries) * 100) : 0,
-        daysSinceDefensive,
-        latestEntries: entries.slice(0, 3),
-    };
-}
-
-function runLocalHeuristics(text) {
-    const lower = text.toLowerCase();
-    const tensionIndicators = ['tu ne', 'toujours', 'encore', 'pourquoi', 'fais'];
-    const validationNeed = ['écoute', 'compris', 'soutiens', 'présent', 'merci'];
-    const limitNeed = ['stop', 'limite', 'respecte', 'ne peux pas'];
-
-    const tensionScore = tensionIndicators.reduce(
-        (score, word) => score + (lower.includes(word) ? 1 : 0),
-        0,
-    );
-
-    const meta =
-        tensionScore >= 3
-            ? 'Chaleur élevée : privilégie une réponse courte, validante, avec option pause.'
-            : tensionScore === 2
-            ? 'Tension modérée : une validation claire + proposition de plan peut suffire.'
-            : 'Tension faible : opportunité de co-construction.';
-
-    const needsValidation = validationNeed.some((word) => lower.includes(word));
-    const needsBoundaries = limitNeed.some((word) => lower.includes(word));
-
-    const takeaways = [
-        tensionScore >= 3
-            ? "Ton ego Défensif risque de réagir. Ralentis avant de dérouler ton script."
-            : "Continue de valider avant de proposer la moindre solution.",
-        needsBoundaries
-            ? 'Une limite claire semble nécessaire. Prépare-la en mode MVP.'
-            : 'Propose un plan d’action concret pour la suite.',
-        needsValidation
-            ? "La validation émotionnelle doit être la première brique de ta réponse."
-            : "Ressors la user story cachée pour faire redescendre la tension.",
-    ];
-
-    const options = [
-        {
-            objective: 'Désescalade immédiate',
-            script:
-                "Je t'entends. Ce que tu décris est fatigant/ blessant et c'est normal que ça te prenne autant de place. Je propose qu'on fasse une pause de 15 minutes pour que je revienne vers toi avec un plan plus clair, ok ?",
-        },
-        {
-            objective: needsBoundaries ? 'Poser une limite' : 'Clarifier le besoin',
-            script: needsBoundaries
-                ? "Je veux vraiment qu'on avance, et j'ai besoin qu'on évite les généralités type “toujours/jamais”. Ce soir, j'ai l'énergie pour écouter et poser une limite claire : si on dépasse ce ton, je stoppe la discussion et on reprend demain calmement."
-                : "Ce que je comprends : tu as besoin de sentir que je m'implique autant que toi. Voici ce que je te propose : [action concrète], et on fait un point dimanche pour mesurer si ça te soulage.",
-        },
-        {
-            objective: 'Alignement produit',
-            script:
-                "Scenario 1 : je fais [action], scenario 2 : on pose ensemble une autre manière de gérer [sujet]. Donne-moi ton feedback : quel MVP te semble le plus aligné avec ton besoin là tout de suite ?",
-        },
-    ];
-
-    return {
-        meta,
-        takeaways,
-        options,
-    };
-}
-
-function formatDateShort(date) {
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return 'Date inconnue';
-    return d.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    });
-}
-
-function formatRelativeTime(date) {
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return 'Date inconnue';
-    const diffMs = Date.now() - d.getTime();
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return "Aujourd'hui";
-    if (diffDays === 1) return 'Hier';
-    if (diffDays < 7) return `Il y a ${diffDays} jours`;
-    const diffWeeks = Math.round(diffDays / 7);
-    if (diffWeeks < 5) return `Il y a ${diffWeeks} semaine${diffWeeks > 1 ? 's' : ''}`;
-    return formatDateShort(d);
-}
-
-function formatFullDate(date) {
-    const d = new Date(date);
-    if (Number.isNaN(d.getTime())) return 'Date inconnue';
-    return d.toLocaleString('fr-FR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
-// escapeHTML moved to security.js for centralized security management

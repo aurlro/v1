@@ -572,10 +572,23 @@ function createDojoSimulator({ modal, toast }) {
     /**
      * Démarre un scénario
      */
-    function startScenario(scenarioId) {
+    function startScenario(scenarioId, buttonElement = null) {
         currentScenario = SCENARIOS.find((s) => s.id === scenarioId);
         if (!currentScenario) return;
 
+        // Add loading state to button if available
+        if (buttonElement) {
+            buttonElement.classList.add('loading');
+            buttonElement.disabled = true;
+
+            // Remove loading state after a brief delay to show visual feedback
+            setTimeout(() => {
+                buttonElement.classList.remove('loading');
+                buttonElement.disabled = false;
+            }, 300);
+        }
+
+        // Render the modal
         renderScenarioModal();
     }
 
@@ -718,13 +731,14 @@ function createDojoSimulator({ modal, toast }) {
      */
     function showDojoMenu() {
         const scenariosList = SCENARIOS.map(
-            (scenario) => {
+            (scenario, index) => {
                 const isCouple = scenario.category === 'Couple';
                 const emoji = isCouple ? scenario.patternEmoji : scenario.egoEmoji;
                 const name = isCouple ? scenario.pattern : scenario.ego;
+                const pulseClass = index === 0 ? 'animate-pulse' : '';
                 return `
-                <button type="button" class="dojo-scenario-button" data-scenario-id="${scenario.id}">
-                    <span class="dojo-scenario-emoji">${emoji}</span>
+                <button type="button" class="dojo-scenario-button ${pulseClass}" data-scenario-id="${scenario.id}" tabindex="0" role="button" aria-label="Démarrer le scénario: ${name}">
+                    <span class="dojo-scenario-emoji" aria-hidden="true">${emoji}</span>
                     <div class="dojo-scenario-info">
                         <p class="font-semibold">${name}</p>
                         <p class="text-sm text-slate-600 dark:text-slate-400">${scenario.title}</p>
@@ -767,14 +781,52 @@ function createDojoSimulator({ modal, toast }) {
             ],
         });
 
-        // Attach event listeners
-        setTimeout(() => {
-            document.querySelectorAll('[data-scenario-id]').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    startScenario(btn.getAttribute('data-scenario-id'));
-                });
-            });
-        }, 0);
+        // Use event delegation instead of setTimeout
+        setupDojoMenuEventListeners();
+    }
+
+    /**
+     * Configure les event listeners pour le menu du dojo avec délégation
+     */
+    function setupDojoMenuEventListeners() {
+        // Find the modal content container
+        const modalContent = document.getElementById('dojo-modal');
+        if (!modalContent) return;
+
+        // Use event delegation on the modal
+        const handleScenarioClick = (e) => {
+            const button = e.target.closest('[data-scenario-id]');
+            if (!button) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const scenarioId = button.getAttribute('data-scenario-id');
+            startScenario(scenarioId, button);
+        };
+
+        // Handle keyboard events for accessibility
+        const handleScenarioKeyDown = (e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+
+            const button = e.target.closest('[data-scenario-id]');
+            if (!button) return;
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            const scenarioId = button.getAttribute('data-scenario-id');
+            startScenario(scenarioId, button);
+        };
+
+        // Remove existing listeners to avoid duplicates
+        const menu = modalContent.querySelector('.dojo-menu');
+        if (menu) {
+            menu.removeEventListener('click', handleScenarioClick);
+            menu.removeEventListener('keydown', handleScenarioKeyDown);
+            menu.addEventListener('click', handleScenarioClick);
+            menu.addEventListener('keydown', handleScenarioKeyDown);
+        }
     }
 
     /**
