@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tests de non-régression</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/buttons.css">
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div class="container mx-auto p-8">
+        <h1 class="text-2xl font-bold mb-4">Tests de non-régression</h1>
+        <div id="test-results" class="space-y-4"></div>
+    </div>
+
+    <script src="assets/js/test-runner.js"></script>
+    <script src="assets/js/modules/notificationManager.js"></script>
+    <script src="assets/js/modules/journalStore.js"></script>
+    <script src="assets/js/modules/localEncryptor.js"></script>
+    <script src="tests/notificationManager.test.js"></script>
+    <script src="tests/journalStore.test.js"></script>
+    <script src="tests/localEncryptor.test.js"></script>
+</body>
+</html>

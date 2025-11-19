@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Styles */
+@import 'styles.css';
+@import 'accessibility-fixes.css';
+@import 'buttons.css';
+@import 'modules.css';

@@ -1,5 +1,26 @@
 'use strict';
 
+// 🛡️ GLOBAL SAFETY NET (Error Boundary)
+// Capture les erreurs critiques pour éviter l'écran blanc
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+    if (msg.includes('ResizeObserver')) return false; // Ignorer erreurs bénignes
+    console.error('🔥 CRASH DETECTED:', { msg, error });
+    
+    // Essayer d'utiliser le toast système si disponible
+    if (window.app?.toast) {
+        window.app.toast.error(`Erreur système : ${msg}. Tentez de rafraîchir.`);
+    }
+    return false;
+};
+
+window.onunhandledrejection = function(event) {
+    console.error('🔥 ASYNC ERROR:', event.reason);
+    // Feedback utilisateur uniquement si c'est critique (pas une annulation)
+    if (window.app?.toast && event.reason?.name !== 'AbortError') {
+        console.warn('Opération en arrière-plan échouée');
+    }
+};
+
 const STORAGE_KEYS = {
     theme: 'boite-outils-theme',
     lastPage: 'boite-outils-last-page',
@@ -50,14 +71,196 @@ document.addEventListener('DOMContentLoaded', () => {
     const body = document.body;
     const toast = createToastManager();
     const modal = createModalManager();
+
+    // 🟢 SYSTEM HEALTH CHECK: Vérifier la santé du système au démarrage
+    const healthStatus = getSystemHealthStatus();
+    if (healthStatus.status === 'error') {
+        console.error('❌ Système critique:', healthStatus.issues);
+        healthStatus.issues.forEach(issue => {
+            toast.error(issue);
+        });
+    } else if (healthStatus.status === 'warning') {
+        console.warn('⚠️ Avertissements système:', healthStatus.issues);
+        healthStatus.issues.forEach(issue => {
+            toast.warning(issue);
+        });
+    }
+
     const encryptor = createLocalEncryptor();
     const gemini = createGeminiService({ encryptor, toast });
     const ollama = createOllamaService({ toast });
     const journalStore = createJournalStore('communicationJournal', toast);
+    const notifications = createNotificationManager();
 
-    // --- Initialisation thèmes & navigation ---
+    // --- NOUVELLE UI: Initialisation de la Navigation Sidebar ---
     initTheme();
-    const navigation = initNavigation();
+    const navManager = createNavigationManager();
+    const commandPalette = createCommandPalette({ navigation: navManager, toast });
+
+    // --- Gestion Sidebar Mobile ---
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const sidebarCloseBtn = document.getElementById('sidebar-close');
+    const sidebar = document.getElementById('sidebar');
+    const fab = document.getElementById('fab');
+
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', () => {
+            sidebar?.classList.toggle('open');
+        });
+    }
+
+    if (sidebarCloseBtn) {
+        sidebarCloseBtn.addEventListener('click', () => {
+            sidebar?.classList.remove('open');
+        });
+    }
+
+    // Navigation items
+    document.querySelectorAll('[data-page]').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const page = item.getAttribute('data-page');
+            navManager.navigateTo(page);
+        });
+    });
+
+    // FAB (Mobile) - Nouvelle analyse rapide
+    if (fab) {
+        fab.addEventListener('click', () => {
+            navManager.navigateTo('analyzer-quick');
+        });
+    }
+
+    // Bouton "Nouvelle Analyse" dans sidebar
+    const quickAnalyzeBtn = document.querySelector('.quick-action-btn');
+    if (quickAnalyzeBtn) {
+        quickAnalyzeBtn.addEventListener('click', () => {
+            navManager.navigateTo('analyzer-quick');
+        });
+    }
+
+    // --- Page Header Buttons: Search & Notifications ---
+    // Search button (opens Command Palette)
+    const searchButton = document.querySelector('.page-actions button:nth-of-type(1)');
+    if (searchButton) {
+        searchButton.addEventListener('click', () => {
+            commandPalette.open();
+        });
+    }
+
+    // Notifications button - Opens Notifications Panel
+    const notificationsButton = document.querySelector('.page-actions button:nth-of-type(2)');
+    if (notificationsButton) {
+        // Update badge on init
+        notifications.updateBadge();
+
+        notificationsButton.addEventListener('click', () => {
+            openNotificationsPanel();
+        });
+    }
+
+    // Notifications Panel Modal
+    function openNotificationsPanel() {
+        const allNotifications = notifications.getAll();
+        const unreadCount = notifications.getUnreadCount();
+
+        if (allNotifications.length === 0) {
+            toast.info('📬 Aucune notification pour le moment.');
+            return;
+        }
+
+        const notificationsList = allNotifications
+            .map(
+                (notif) => `
+                    <div class="notification-item ${notif.read ? 'read' : 'unread'}" data-notif-id="${notif.id}">
+                        <div class="notification-header">
+                            <span class="notification-icon">${notifications.getIcon(notif.type)}</span>
+                            <div class="notification-meta">
+                                <h4 class="notification-title">${escapeHTML(notif.title)}</h4>
+                                <span class="notification-time">${notifications.formatTime(notif.timestamp)}</span>
+                            </div>
+                            ${
+                                notif.dismissible
+                                    ? `<button type="button" class="notification-dismiss" data-notif-id="${notif.id}" title="Supprimer">×</button>`
+                                    : ''
+                            }
+                        </div>
+                        <p class="notification-message">${escapeHTML(notif.message)}</p>
+                    </div>
+                `,
+            )
+            .join('');
+
+        const html = `
+            <div class="space-y-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold">Notifications (${unreadCount} non lues)</h3>
+                    ${
+                        unreadCount > 0
+                            ? '<button type="button" class="text-xs text-blue-600 dark:text-blue-400 hover:underline" id="mark-all-read">Tout marquer comme lu</button>'
+                            : ''
+                    }
+                </div>
+                <div class="notifications-list space-y-2 max-h-96 overflow-y-auto">
+                    ${notificationsList}
+                </div>
+            </div>
+        `;
+
+        modal.show({
+            targetId: 'journal-modal',
+            title: '🔔 Notifications',
+            html,
+            actions: [
+                {
+                    label: 'Réinitialiser démo',
+                    onClick: () => {
+                        notifications.resetToDefaults();
+                        modal.hide('journal-modal');
+                        toast.info('Notifications réinitialisées.');
+                        setTimeout(() => openNotificationsPanel(), 300);
+                    },
+                },
+                {
+                    label: 'Fermer',
+                    onClick: () => modal.hide('journal-modal'),
+                },
+            ],
+        });
+
+        // Event listeners for notification actions
+        setTimeout(() => {
+            document.querySelectorAll('.notification-dismiss').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const notifId = btn.getAttribute('data-notif-id');
+                    notifications.dismiss(notifId);
+                    btn.closest('.notification-item').style.opacity = '0.5';
+                    btn.closest('.notification-item').style.pointerEvents = 'none';
+                });
+            });
+
+            document.getElementById('mark-all-read')?.addEventListener('click', () => {
+                notifications.markAllAsRead();
+                setTimeout(() => openNotificationsPanel(), 200);
+            });
+
+            document.querySelectorAll('.notification-item').forEach((item) => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.closest('.notification-dismiss')) return;
+                    const notifId = item.getAttribute('data-notif-id');
+                    notifications.markAsRead(notifId);
+                    item.classList.remove('unread');
+                    item.classList.add('read');
+                });
+            });
+        }, 0);
+    }
+
+    // --- ANCIENNE NAVIGATION: Compatibilité ---
+    const navigation = {
+        navigateTo: (page) => navManager.navigateTo(page),
+    };
 
     // --- Modules ---
     document.addEventListener('click', (event) => {
@@ -97,6 +300,15 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     });
 
+    const quickAnalyzerModule = createQuickAnalyzer({
+        rootId: 'quick-root',
+        store: journalStore,
+        toast,
+        gemini,
+        ollama,
+        modal,
+    });
+
     const manualModule = createManualAnalyzer({
         rootId: 'manual-root',
         store: journalStore,
@@ -115,16 +327,43 @@ document.addEventListener('DOMContentLoaded', () => {
         modal,
     });
 
+    const dojo = createDojoSimulator({ modal, toast });
     const guideModule = createGuideModule({
         rootId: 'guide-root',
         toast,
+        dojo,
+        modal,
     });
 
+    // Module Insights (stub - à développer)
+    const insightsModule = {
+        render: () => {
+            const root = document.getElementById('insights-root');
+            if (!root) return;
+            root.innerHTML = `
+                <div class="space-y-6">
+                    <h2 class="text-2xl font-bold">Mes Insights</h2>
+                    <div class="card">
+                        <p class="text-slate-600 dark:text-slate-400">
+                            Agrégation de tes insights personnels à venir...
+                        </p>
+                    </div>
+                </div>
+            `;
+        },
+    };
+
+    // Render initial pages (lazy load sur sidebar click)
     homeModule.render();
     manualModule.render();
     journalModule.render();
+    quickAnalyzerModule.render();
     aiModule.render();
     guideModule.render();
+    insightsModule.render();
+
+    // Restaurer la dernière page visitée
+    navManager.restoreLastPage();
 
     const fallbackPage = 'home';
     let initialPage = fallbackPage;
@@ -261,130 +500,128 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // --- Modules & Stores ---
 
+// 🔥 MODULE AMÉLIORÉ : Analyse Manuelle (Autosave + Validation)
 function createManualAnalyzer({ rootId, store, toast, onSaved }) {
     const root = document.getElementById(rootId);
-    if (!root) {
-        console.warn(`Racine manuelle "${rootId}" introuvable.`);
-        return { render: () => {} };
-    }
+    if (!root) return { render: () => {} };
 
-    const egoOptions = [
-        "La Défensive",
-        "Le Sauveur",
-        "Le Martyr",
-        "Le Dernier Mot",
-        "Le Refus d'influence",
-    ];
-
+    const AUTOSAVE_KEY = 'boite-outils-manual-draft';
+    
+    const egoOptions = ["La Défensive", "Le Sauveur", "Le Martyr", "Le Dernier Mot", "Le Refus d'influence"];
+    
     const steps = [
         {
             id: 'context',
             title: '1. Constat',
             description: 'Capture le contexte brut avant de le re-écrire ou le juger.',
             fields: [
-                {
-                    name: 'context',
-                    label: 'Qu’est-ce qui s’est passé ?',
-                    type: 'textarea',
-                    placeholder:
-                        "Décris la scène telle qu'elle s'est déroulée, sans interprétation.",
-                    required: true,
-                },
-                {
-                    name: 'partnerSignal',
-                    label: 'Quel a été le signal / trigger de ton partenaire ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Phrase, regard, ton de voix, silence... Note ce qui t’a percuté.',
-                    required: true,
-                },
-            ],
+                { name: 'context', label: 'Qu’est-ce qui s’est passé ?', type: 'textarea', placeholder: "Décris la scène telle qu'elle s'est déroulée...", required: true },
+                { name: 'partnerSignal', label: 'Quel a été le signal / trigger ?', type: 'textarea', placeholder: 'Phrase, regard, ton de voix...', required: true },
+            ]
         },
         {
             id: 'ego',
             title: '2. Ego Radar',
-            description:
-                "Identifie l'ego dominant pour pouvoir le désamorcer lors de la prochaine itération.",
+            description: "Identifie l'ego dominant pour pouvoir le désamorcer.",
             fields: [
-                {
-                    name: 'egoFocus',
-                    label: "Quel type d'ego s'est activé ?",
-                    type: 'select',
-                    options: egoOptions,
-                    required: true,
-                },
-                {
-                    name: 'triggerNeed',
-                    label: 'Quel besoin personnel n’a pas été nourri ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Reconnaissance, soutien, sécurité, clarté... note-le en mode backlog.',
-                    required: true,
-                },
-            ],
+                { name: 'egoFocus', label: "Quel type d'ego s'est activé ?", type: 'select', options: egoOptions, required: true },
+                { name: 'triggerNeed', label: 'Quel besoin personnel n’a pas été nourri ?', type: 'textarea', placeholder: 'Reconnaissance, soutien, sécurité...', required: true },
+            ]
         },
         {
             id: 'response',
             title: '3. MVP de réponse',
-            description:
-                'Dessine la réponse que tu aurais aimé livrer, validation comprise.',
+            description: 'Dessine la réponse que tu aurais aimé livrer.',
             fields: [
-                {
-                    name: 'alternativeResponse',
-                    label: 'Quelle réponse MVP veux-tu tester ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Rédige la réponse idéale (ton, structure, validation, plan).',
-                    required: true,
-                },
-                {
-                    name: 'validation',
-                    label: 'Comment valider sa frustration en une phrase ?',
-                    type: 'textarea',
-                    placeholder:
-                        "Ex: “Je comprends que tu... et c'est logique que ça te...”",
-                    required: true,
-                },
-            ],
+                { name: 'alternativeResponse', label: 'Quelle réponse MVP veux-tu tester ?', type: 'textarea', placeholder: 'Rédige la réponse idéale...', required: true },
+                { name: 'validation', label: 'Comment valider sa frustration ?', type: 'textarea', placeholder: "Ex: “Je comprends que tu...”", required: true },
+            ]
         },
         {
             id: 'action',
             title: '4. Action & Insight',
             description: 'Programme la suite et capture l’enseignement clé.',
             fields: [
-                {
-                    name: 'actionPlan',
-                    label: 'Quel est ton plan d’action concret ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Roadmap courte : message à envoyer, rituel à planifier, limite à poser...',
-                    required: true,
-                },
-                {
-                    name: 'insight',
-                    label: 'Insight clé à retenir pour la prochaine fois ?',
-                    type: 'textarea',
-                    placeholder:
-                        'Le bug racine, l’alerte à surveiller, la ressource qui t’a aidé...',
-                    required: false,
-                },
-            ],
-        },
+                { name: 'actionPlan', label: 'Quel est ton plan d’action concret ?', type: 'textarea', placeholder: 'Message à envoyer, rituel à planifier...', required: true },
+                { name: 'insight', label: 'Insight clé à retenir ?', type: 'textarea', placeholder: 'Le bug racine, l’alerte à surveiller...', required: false },
+            ]
+        }
     ];
 
     const state = {
         stepIndex: 0,
         values: {
-            context: '',
-            partnerSignal: '',
-            egoFocus: '',
-            triggerNeed: '',
-            alternativeResponse: '',
-            validation: '',
-            actionPlan: '',
-            insight: '',
+            context: '', partnerSignal: '', egoFocus: '', triggerNeed: '',
+            alternativeResponse: '', validation: '', actionPlan: '', insight: '',
         },
     };
+
+    // 🔄 RESTAURATION BROUILLON (Auto-restore)
+    function restoreDraft() {
+        try {
+            const draft = sessionStorage.getItem(AUTOSAVE_KEY);
+            if (draft) {
+                const parsed = JSON.parse(draft);
+                // Restaure seulement si le brouillon a moins de 24h
+                if (Date.now() - parsed.timestamp < 86400000) {
+                    state.values = { ...state.values, ...parsed.values };
+                    state.stepIndex = parsed.stepIndex || 0;
+                    toast.info('📝 Brouillon restauré automatiquement.');
+                }
+            }
+        } catch (e) { console.debug('Pas de brouillon'); }
+    }
+
+    let delegatedListenerAttached = false;
+
+    function attachDelegatedListeners() {
+        if (delegatedListenerAttached) return;
+        delegatedListenerAttached = true;
+
+        // Input Delegation + Autosave
+        root.addEventListener('input', (event) => {
+            const target = event.target;
+            if (!target.name) return;
+            
+            // Enlever la classe d'erreur visuelle si l'utilisateur commence à taper
+            if (target.classList.contains('invalid')) {
+                target.classList.remove('invalid');
+            }
+
+            state.values[target.name] = target.value;
+
+            if (target.tagName === 'TEXTAREA') autoResizeTextarea(target);
+
+            // 💾 SAUVEGARDE AUTO (SessionStorage)
+            sessionStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+                values: state.values,
+                stepIndex: state.stepIndex,
+                timestamp: Date.now()
+            }));
+        });
+
+        // Navigation Buttons Delegation
+        root.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-action]');
+            if (!button) return;
+
+            const action = button.getAttribute('data-action');
+            
+            if (action === 'prev') {
+                if (state.stepIndex > 0) {
+                    state.stepIndex -= 1;
+                    render();
+                }
+            } else if (action === 'next') {
+                if (validateCurrentStep()) {
+                    state.stepIndex += 1;
+                    render();
+                }
+            } else if (action === 'save') {
+                if (validateAllSteps()) saveEntry();
+            }
+        });
+    }
 
     function render() {
         const currentStep = steps[state.stepIndex];
@@ -395,148 +632,96 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
                 <header class="space-y-2">
                     <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Analyse Manuelle</h2>
                     <p class="text-slate-600 dark:text-slate-400">
-                        Transforme ta dernière crise en métrique actionnable. 4 étapes, zero juge, 100% introspection produit.
+                        Transforme ta crise en plan d'action. (Étape ${state.stepIndex + 1}/${steps.length})
                     </p>
                 </header>
 
                 <div class="stepper">
-                    ${steps
-                        .map((step, index) => {
-                            const isActive = index === state.stepIndex;
-                            return `
-                                <div class="stepper-item ${isActive ? 'active' : ''}">
-                                    <span class="stepper-index">${index + 1}</span>
-                                    <div class="font-semibold">${step.title}</div>
-                                    <p class="text-sm text-slate-500 dark:text-slate-400">${step.description}</p>
-                                </div>
-                            `;
-                        })
-                        .join('')}
+                    ${steps.map((step, index) => `
+                        <div class="stepper-item ${index === state.stepIndex ? 'active' : ''}">
+                            <span class="stepper-index">${index + 1}</span>
+                            <div class="font-semibold hidden sm:block">${step.title}</div>
+                        </div>
+                    `).join('')}
                 </div>
 
                 <form id="manual-form" class="space-y-6">
-                    ${currentStep.fields
-                        .map((field) => renderField(field, state.values[field.name] || ''))
-                        .join('')}
+                    <h3 class="text-xl font-semibold text-slate-800 dark:text-slate-200">${currentStep.title}</h3>
+                    <p class="text-sm text-slate-500 mb-4">${currentStep.description}</p>
+                    ${currentStep.fields.map(field => renderField(field, state.values[field.name] || '')).join('')}
                 </form>
 
                 <div class="wizard-actions">
                     <button type="button" class="secondary-button" data-action="prev" ${state.stepIndex === 0 ? 'disabled' : ''}>
                         ← Retour
                     </button>
-                    <div class="flex gap-3">
-                        ${
-                            state.stepIndex < steps.length - 1
-                                ? `<button type="button" class="primary-button" data-action="next">
-                                        Étape suivante →
-                                   </button>`
-                                : `<button type="button" class="primary-button" data-action="save">
-                                        Sauvegarder l'analyse
-                                   </button>`
-                        }
-                    </div>
+                    ${state.stepIndex < steps.length - 1
+                        ? `<button type="button" class="primary-button" data-action="next">Suivant →</button>`
+                        : `<button type="button" class="primary-button" data-action="save">💾 Sauvegarder</button>`
+                    }
                 </div>
             </div>
         `;
 
-        root.querySelectorAll('textarea').forEach((textarea) => {
-            autoResizeTextarea(textarea);
-            textarea.addEventListener('input', () => autoResizeTextarea(textarea));
-        });
-
-        const form = root.querySelector('#manual-form');
-        form?.addEventListener('input', (event) => {
-            const target = event.target;
-            if (!target.name) return;
-            state.values[target.name] = target.value;
-        });
-
-        root.querySelector('[data-action="prev"]')?.addEventListener('click', () => {
-            if (state.stepIndex > 0) {
-                state.stepIndex -= 1;
-                render();
-            }
-        });
-
-        root.querySelector('[data-action="next"]')?.addEventListener('click', () => {
-            if (!validateCurrentStep()) return;
-            if (state.stepIndex < steps.length - 1) {
-                state.stepIndex += 1;
-                render();
-            }
-        });
-
-        root.querySelector('[data-action="save"]')?.addEventListener('click', () => {
-            if (!validateAllSteps()) return;
-            saveEntry();
-        });
+        root.querySelectorAll('textarea').forEach(autoResizeTextarea);
+        attachDelegatedListeners();
     }
 
     function renderField(field, value) {
+        // Ajout de l'attribut data-required pour le CSS
+        const reqAttr = field.required ? 'data-required="true"' : '';
+        // Classes communes
+        const commonClasses = "form-input w-full rounded-lg border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3 transition-all focus:border-cyan-500 focus:ring-2 focus:ring-cyan-200 outline-none";
+        
+        let inputHtml = '';
         if (field.type === 'select') {
-            return `
-                <div class="form-group">
-                    <label for="${field.name}">${field.label}${field.required ? ' *' : ''}</label>
-                    <select id="${field.name}" name="${field.name}">
-                        <option value="">Sélectionne une option</option>
-                        ${field.options
-                            .map(
-                                (option) =>
-                                    `<option value="${option}" ${
-                                        option === value ? 'selected' : ''
-                                    }>${option}</option>`,
-                            )
-                            .join('')}
-                    </select>
-                    ${
-                        field.helper
-                            ? `<p class="helper-text">${field.helper}</p>`
-                            : ''
-                    }
-                </div>
-            `;
+            inputHtml = `
+                <select id="${field.name}" name="${field.name}" class="form-select ${commonClasses}">
+                    <option value="">Sélectionne une option</option>
+                    ${field.options.map(opt => `<option value="${opt}" ${opt === value ? 'selected' : ''}>${opt}</option>`).join('')}
+                </select>`;
+        } else {
+            inputHtml = `
+                <textarea id="${field.name}" name="${field.name}" class="form-textarea ${commonClasses}" placeholder="${field.placeholder || ''}">${value || ''}</textarea>`;
         }
 
         return `
-            <div class="form-group">
-                <label for="${field.name}">${field.label}${field.required ? ' *' : ''}</label>
-                <textarea id="${field.name}" name="${field.name}" placeholder="${field.placeholder || ''}">${value || ''}</textarea>
-                ${
-                    field.helper
-                        ? `<p class="helper-text">${field.helper}</p>`
-                        : ''
-                }
+            <div class="form-group mb-4">
+                <label for="${field.name}" class="form-label font-medium block mb-2 text-slate-700 dark:text-slate-300" ${reqAttr}>
+                    ${escapeHTML(field.label)}
+                </label>
+                ${inputHtml}
             </div>
         `;
     }
 
+    // 🔍 VALIDATION VISUELLE
     function validateCurrentStep() {
         const currentStep = steps[state.stepIndex];
-        const missing = currentStep.fields.filter(
-            (field) => field.required && !state.values[field.name]?.trim(),
-        );
-        if (missing.length > 0) {
-            toast.error(
-                missing.length > 1
-                    ? 'Complète les champs demandés avant de continuer.'
-                    : 'Complète ce champ avant de continuer.',
-            );
-            return false;
+        let isValid = true;
+        let firstError = null;
+
+        currentStep.fields.forEach(field => {
+            // Vérifie si champ requis est vide
+            if (field.required && !state.values[field.name]?.trim()) {
+                isValid = false;
+                const el = root.querySelector(`[name="${field.name}"]`);
+                if (el) {
+                    el.classList.add('invalid'); // Déclenche l'animation CSS 'shake'
+                    if (!firstError) firstError = el;
+                }
+            }
+        });
+
+        if (!isValid) {
+            toast.error('Merci de remplir les champs obligatoires.');
+            firstError?.focus();
         }
-        return true;
+        return isValid;
     }
 
     function validateAllSteps() {
-        const missing = steps.flatMap((step) =>
-            step.fields.filter(
-                (field) => field.required && !state.values[field.name]?.trim(),
-            ),
-        );
-        if (missing.length > 0) {
-            toast.error('Remplis les champs critiques avant de sauvegarder.');
-            return false;
-        }
-        return true;
+        return validateCurrentStep(); 
     }
 
     function saveEntry() {
@@ -550,20 +735,20 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
 
         const result = store.saveEntry(entry);
         if (result.success) {
-            toast.success('Analyse sauvegardée dans ton journal.');
+            toast.success('Analyse sauvegardée avec succès.');
+            // 🧹 NETTOYAGE: On supprime le brouillon après sauvegarde réussie
+            sessionStorage.removeItem(AUTOSAVE_KEY);
             resetState();
             render();
             onSaved?.(entry);
         } else {
-            toast.error(result.message || 'Sauvegarde impossible.');
+            toast.error('Erreur de sauvegarde.');
         }
     }
 
     function resetState() {
         state.stepIndex = 0;
-        Object.keys(state.values).forEach((key) => {
-            state.values[key] = '';
-        });
+        Object.keys(state.values).forEach(key => state.values[key] = '');
     }
 
     function buildSummary(values) {
@@ -576,11 +761,13 @@ function createManualAnalyzer({ rootId, store, toast, onSaved }) {
             `Validation : ${values.validation}`,
             `Plan d'action : ${values.actionPlan}`,
             values.insight ? `Insight : ${values.insight}` : null,
-        ]
-            .filter(Boolean)
-            .join('\n\n');
+        ].filter(Boolean).join('\n\n');
     }
-
+    
+    // Initialisation
+    restoreDraft();
+    render(); 
+    
     return { render };
 }
 
@@ -697,7 +884,20 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
                 exportJournal();
                 break;
             case 'clear':
-                clearJournal();
+                // 🔴 CRITICAL: Ask for confirmation before clearing ALL data
+                modal.open({
+                    title: '⚠️ Vider complètement le journal ?',
+                    body: `<p>Tu vas supprimer <strong>${entries.length} entrées</strong> de manière irréversible.</p>
+                           <p class="mt-2 text-sm text-slate-500">Cette action ne peut pas être annulée.</p>`,
+                    buttons: [
+                        { label: 'Annuler', variant: 'secondary', action: 'cancel' },
+                        { label: 'Vider le journal', variant: 'danger', action: 'confirm' }
+                    ]
+                }).then((result) => {
+                    if (result === 'confirm') {
+                        clearJournal();
+                    }
+                });
                 break;
             case 'start-analysis':
                 document.querySelector('[data-navigate="analyzer-manual"]')?.click();
@@ -714,10 +914,16 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
         reader.onload = () => {
             try {
                 const parsed = JSON.parse(reader.result);
-                if (!Array.isArray(parsed)) {
-                    throw new Error('Format JSON inattendu.');
+
+                // 🔴 SECURITY: Strict validation of imported data
+                let validated;
+                try {
+                    validated = validateImportedData(parsed);
+                } catch (validationError) {
+                    throw new Error(`Validation JSON échouée: ${validationError.message}`);
                 }
-                const imported = store.importEntries(parsed);
+
+                const imported = store.importEntries(validated);
                 toast.success(`Import réussi : ${imported.count} entrées fusionnées.`);
                 event.target.value = '';
                 render();
@@ -828,11 +1034,9 @@ function createJournalModule({ rootId, store, toast, modal, onChange }) {
             toast.info('Le journal est déjà vide.');
             return;
         }
-        if (!window.confirm('Tu es sûr de vouloir tout effacer ?')) {
-            return;
-        }
+        // 🔴 CRITICAL: Confirmation is now done in handleAction before calling this function
         store.clear();
-        toast.warning('Journal remis à zéro.');
+        toast.error('Journal vidé. Aucune sauvegarde disponible.');
         render();
         onChange?.();
     }
@@ -893,6 +1097,8 @@ function createHomeModule({ rootId, store, toast, navigate }) {
         console.warn(`Racine home "${rootId}" introuvable.`);
         return { render: () => {} };
     }
+
+    let eventsBound = false;
 
     function render() {
         const entries = store.getAll();
@@ -982,7 +1188,7 @@ function createHomeModule({ rootId, store, toast, navigate }) {
                             {
                                 label: 'Plan d’urgence (Pause)',
                                 body: 'Respiration, cadrage, script radicaux de validation.',
-                                target: 'home',
+                                target: 'analyzer-quick',
                                 toast: 'Astuce : fabrique ton kit de crise dans le Dojo.',
                             },
                             {
@@ -1023,12 +1229,16 @@ function createHomeModule({ rootId, store, toast, navigate }) {
             </div>
         `;
 
-        root.querySelectorAll('[data-toast]').forEach((button) => {
-            button.addEventListener('click', () => {
+        // 🟠 MEMORY LEAK FIX: Use delegation instead of adding listeners in loop
+        if (!eventsBound) {
+            root.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-toast]');
+                if (!button) return;
                 const message = button.getAttribute('data-toast');
                 if (message) toast.info(message);
             });
-        });
+            eventsBound = true;
+        }
     }
 
     function extractInsight(entry) {
@@ -1203,6 +1413,14 @@ function createGeminiService({ encryptor, toast }) {
             const text = (prompt || '').trim();
             if (!text) throw createError('EMPTY_PROMPT', 'Message vide.');
 
+            // 🔴 SECURITY: Sanitize prompt before sending to Gemini API
+            let sanitized;
+            try {
+                sanitized = sanitizePrompt(text);
+            } catch (error) {
+                throw createError('INVALID_PROMPT', `Validation du prompt échouée: ${error.message}`);
+            }
+
             const cooldownUntil = getCooldownTimestamp();
             if (cooldownUntil) {
                 throw createError('COOLDOWN', 'Quota Gemini en pause.', {
@@ -1211,7 +1429,7 @@ function createGeminiService({ encryptor, toast }) {
             }
 
             const apiKey = await decryptKey();
-            const requestBody = buildGeminiRequest(text);
+            const requestBody = buildGeminiRequest(sanitized);
             let response;
             try {
                 response = await fetch(GEMINI_ENDPOINT, {
@@ -1314,12 +1532,20 @@ function createOllamaService({ toast }) {
         const text = (prompt || '').trim();
         if (!text) throw new Error('Message vide.');
 
+        // 🔴 SECURITY: Sanitize prompt before sending to API
+        let sanitized;
+        try {
+            sanitized = sanitizePrompt(text);
+        } catch (error) {
+            throw new Error(`Validation du prompt échouée: ${error.message}`);
+        }
+
         const config = getConfig();
         const url = `${config.endpoint}/api/generate`;
 
         const requestBody = {
             model: config.model,
-            prompt: `${GEMINI_SYSTEM_PROMPT}\n\nUtilisateur: ${text}`,
+            prompt: `${GEMINI_SYSTEM_PROMPT}\n\nUtilisateur: ${sanitized}`,
             stream: false,
             options: {
                 temperature: 0.7,
@@ -1415,6 +1641,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
         lastResult: null,
     };
     let unsubscribeGemini = null;
+    let eventsBound = false;
 
     function getAIProvider() {
         try {
@@ -1497,6 +1724,9 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                             ${statusInfo}
                         </div>
                         <div class="flex gap-2">
+                            <button type="button" class="secondary-button text-sm" data-action="test-provider" title="Tester si ce provider fonctionne">
+                                🧪 Tester
+                            </button>
                             ${configButtons}
                         </div>
                     </div>
@@ -1535,62 +1765,93 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
 
         const textarea = root.querySelector('#ai-input');
         autoResizeTextarea(textarea);
-        textarea?.addEventListener('input', () => autoResizeTextarea(textarea));
 
-        // Provider selector
-        const providerSelect = root.querySelector('#ai-provider-select');
-        providerSelect?.addEventListener('change', (event) => {
-            setAIProvider(event.target.value);
-            render();
-        });
+        // 🟠 MEMORY LEAK FIX: Attach event listeners once using delegation
+        if (!eventsBound) {
+            // Provider selector
+            root.addEventListener('change', (event) => {
+                if (event.target.id === 'ai-provider-select') {
+                    setAIProvider(event.target.value);
+                    render();
+                }
+            });
 
-        const dropzone = root.querySelector('[data-dropzone]');
-        const fileInput = root.querySelector('[data-file-input]');
-        const thumbnails = root.querySelector('[data-thumbnails]');
+            // Textarea input with delegation
+            root.addEventListener('input', (event) => {
+                if (event.target.id === 'ai-input') {
+                    autoResizeTextarea(event.target);
+                }
+            });
 
-        dropzone?.addEventListener('dragover', (event) => {
-            event.preventDefault();
-            dropzone.classList.add('drag');
-        });
-        dropzone?.addEventListener('dragleave', () => {
-            dropzone.classList.remove('drag');
-        });
-        dropzone?.addEventListener('drop', (event) => {
-            event.preventDefault();
-            dropzone.classList.remove('drag');
-            const files = Array.from(event.dataTransfer.files || []);
-            previewFiles(files);
-        });
+            const dropzone = root.querySelector('[data-dropzone]');
 
-        root.addEventListener('click', (event) => {
-            const action = event.target.getAttribute('data-action');
-            if (!action) return;
+            dropzone?.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                dropzone.classList.add('drag');
+            });
+            dropzone?.addEventListener('dragleave', () => {
+                dropzone.classList.remove('drag');
+            });
+            dropzone?.addEventListener('drop', (event) => {
+                event.preventDefault();
+                dropzone.classList.remove('drag');
+                const files = Array.from(event.dataTransfer.files || []);
+                previewFiles(files);
+            });
 
-            switch (action) {
-                case 'trigger-file':
-                    fileInput?.click();
-                    break;
-                case 'analyze':
-                    analyze();
-                    break;
-                case 'reset':
-                    reset();
-                    break;
-                case 'configure-gemini':
-                    openGeminiModal();
-                    break;
-                case 'configure-ollama':
-                    openOllamaModal();
-                    break;
-                default:
-                    break;
-            }
-        });
+            root.addEventListener('click', (event) => {
+                const action = event.target.getAttribute('data-action');
+                if (!action) return;
 
-        fileInput?.addEventListener('change', (event) => {
-            const files = Array.from(event.target.files || []);
-            previewFiles(files);
-        });
+                switch (action) {
+                    case 'trigger-file':
+                        root.querySelector('[data-file-input]')?.click();
+                        break;
+                    case 'analyze':
+                        analyze();
+                        break;
+                    case 'reset':
+                        // 🔴 CRITICAL: Ask for confirmation if textarea has content
+                        if (textarea.value.trim()) {
+                            modal.open({
+                                title: '⚠️ Réinitialiser l\'analyse ?',
+                                body: `<p>Tu vas perdre ton message en cours.</p>
+                                       <p class="mt-2 text-sm text-slate-500">Les images seront aussi supprimées.</p>`,
+                                buttons: [
+                                    { label: 'Annuler', variant: 'secondary', action: 'cancel' },
+                                    { label: 'Réinitialiser', variant: 'danger', action: 'confirm' }
+                                ]
+                            }).then((result) => {
+                                if (result === 'confirm') {
+                                    reset();
+                                    toast.info('Analyse réinitialisée.');
+                                }
+                            });
+                        } else {
+                            reset();
+                        }
+                        break;
+                    case 'configure-gemini':
+                        openGeminiModal();
+                        break;
+                    case 'configure-ollama':
+                        openOllamaModal();
+                        break;
+                    case 'test-provider':
+                        testProvider();
+                        break;
+                    default:
+                        break;
+                }
+            });
+
+            root.querySelector('[data-file-input]')?.addEventListener('change', (event) => {
+                const files = Array.from(event.target.files || []);
+                previewFiles(files);
+            });
+
+            eventsBound = true;
+        }
 
         function previewFiles(files) {
             if (!files.length) return;
@@ -1598,7 +1859,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                 .slice(0, 4)
                 .map(
                     (file) => `
-                        <span class="badge">${file.name}</span>
+                        <span class="badge">${escapeHTML(file.name)}</span>
                     `,
                 )
                 .join('');
@@ -1669,7 +1930,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                     result.source = 'heuristic';
                 }
 
-                setResult(result);
+                setResult(result, text);
             })()
                 .catch((error) => {
                     console.error('Analyse IA', error);
@@ -1714,12 +1975,120 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
             return fallback;
         }
 
-        function setResult(result) {
+        async function testProvider() {
+            const currentProvider = getAIProvider();
+            const testButton = root.querySelector('[data-action="test-provider"]');
+            if (!testButton) return;
+
+            // Save button state
+            const originalText = testButton.textContent;
+            const wasDisabled = testButton.disabled;
+
+            // Disable button and show loading state
+            testButton.disabled = true;
+            testButton.textContent = '⏳ Test en cours...';
+
+            try {
+                if (currentProvider === 'gemini') {
+                    const status = gemini.getKeyStatus();
+                    if (!status.configured) {
+                        toast.error('❌ Gemini non configuré. Configure-le d\'abord.');
+                        return;
+                    }
+                    if (status.cooldown) {
+                        const until = formatCountdown(status.cooldown);
+                        toast.warning(`⏸️ Gemini en cooldown jusqu'à ${until}`);
+                        return;
+                    }
+
+                    // Test avec un prompt simple
+                    try {
+                        const testPrompt = 'Test rapide: dis moi juste "ok" si tu reçois ce message.';
+                        const result = await gemini.fetchAnalysis(testPrompt);
+                        toast.success('✅ Gemini fonctionne ! Prêt à l\'utiliser.');
+                    } catch (error) {
+                        const errorMsg = error.message || error.code || 'Erreur inconnue';
+                        let userMessage = '❌ Erreur Gemini: ';
+
+                        if (error.code === 'INVALID_KEY') {
+                            userMessage += 'Clé API invalide. Vérifie ta clé dans les paramètres.';
+                        } else if (error.code === 'QUOTA') {
+                            userMessage += `Quota atteint. ${errorMsg}`;
+                        } else if (error.code === 'NETWORK') {
+                            userMessage += 'Pas de connexion Internet.';
+                        } else if (error.code === 'API_ERROR') {
+                            userMessage += 'L\'API Gemini ne répond pas.';
+                        } else {
+                            userMessage += errorMsg;
+                        }
+                        toast.error(userMessage);
+                    }
+                } else if (currentProvider === 'ollama') {
+                    try {
+                        const config = ollama.getConfig();
+                        const testPrompt = 'Test rapide: dis moi juste "ok" si tu reçois ce message.';
+                        const result = await ollama.fetchAnalysis(testPrompt);
+                        toast.success(`✅ Ollama fonctionne ! Modèle: ${config.model}`);
+                    } catch (error) {
+                        const errorMsg = error.message || 'Erreur inconnue';
+                        let userMessage = '❌ Erreur Ollama: ';
+
+                        if (errorMsg.includes('contacter Ollama')) {
+                            const config = ollama.getConfig();
+                            userMessage += `Ollama ne répond pas sur ${config.endpoint}. Lance Ollama en local.`;
+                        } else if (errorMsg.includes('429')) {
+                            userMessage += 'Trop de requêtes. Patiente avant de relancer.';
+                        } else if (errorMsg.includes('401') || errorMsg.includes('403')) {
+                            userMessage += 'Authentification refusée.';
+                        } else {
+                            userMessage += errorMsg;
+                        }
+                        toast.error(userMessage);
+                    }
+                } else {
+                    // Heuristic
+                    const result = runLocalHeuristics('test');
+                    toast.success('✅ Analyse locale (heuristique) fonctionne.');
+                }
+            } catch (error) {
+                console.error('Test provider error:', error);
+                toast.error('❌ Erreur lors du test du provider.');
+            } finally {
+                // Restore button state
+                testButton.disabled = wasDisabled;
+                testButton.textContent = originalText;
+            }
+        }
+
+        function setResult(result, originalPrompt = '') {
             if (!result) return;
             state.lastResult = result;
             const container = root.querySelector('#ai-results');
             if (!container) return;
             container.classList.remove('hidden');
+
+            // 🔴 QUALITY GUARD: Validate response quality
+            const validation = validateResponse(result, originalPrompt);
+            let validationBadge = '';
+
+            if (!validation.valid) {
+                const issues = formatValidationIssues(validation);
+                validationBadge = `
+                    <div class="mb-3 p-3 rounded-lg ${
+                        issues.type === 'error' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-200' :
+                        issues.type === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-200' :
+                        'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200'
+                    }">
+                        <div class="flex items-center gap-2 font-medium">
+                            <span>${issues.icon}</span>
+                            <span>${issues.message}</span>
+                        </div>
+                        ${issues.details ? `<ul class="text-xs mt-2 space-y-1 ml-6">
+                            ${issues.details.map(d => `<li>• ${d}</li>`).join('')}
+                        </ul>` : ''}
+                    </div>
+                `;
+            }
 
             const safeTakeaways =
                 Array.isArray(result.takeaways) && result.takeaways.length > 0
@@ -1768,6 +2137,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
 
             container.innerHTML = `
                 <div class="space-y-4">
+                    ${validationBadge}
                     <header class="space-y-2">
                         <div class="flex items-center gap-2">
                             <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">${title}</h3>
@@ -1838,8 +2208,8 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                 <form id="gemini-config-form" class="space-y-4">
                     <div class="form-group">
                         <label for="gemini-key">Clé API Gemini</label>
-                        <input type="password" id="gemini-key" name="gemini-key" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm" placeholder="AIza..." autocomplete="off">
-                        <p class="helper-text">
+                        <input type="password" id="gemini-key" name="gemini-key" class="form-input" placeholder="AIza..." autocomplete="off">
+                        <p class="form-helper">
                             La clé est stockée chiffrée sur cet appareil${
                                 status.hint ? ` (actuelle : ****${status.hint})` : ''
                             }.
@@ -1903,22 +2273,23 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
                 <form id="ollama-config-form" class="space-y-4">
                     <div class="form-group">
                         <label for="ollama-endpoint">Endpoint Ollama</label>
-                        <input type="text" id="ollama-endpoint" name="ollama-endpoint" value="${config.endpoint}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm" placeholder="http://localhost:11434">
-                        <p class="helper-text">
+                        <input type="text" id="ollama-endpoint" name="ollama-endpoint" value="${escapeHTML(config.endpoint)}" class="form-input" placeholder="http://localhost:11434">
+                        <p class="form-helper">
                             URL de ton serveur Ollama local (par défaut http://localhost:11434)
                         </p>
                     </div>
                     <div class="form-group">
                         <label for="ollama-model">Modèle</label>
-                        <input type="text" id="ollama-model" name="ollama-model" value="${config.model}" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm" placeholder="llama3.2">
-                        <p class="helper-text">
+                        <input type="text" id="ollama-model" name="ollama-model" value="${escapeHTML(config.model)}" class="form-input" placeholder="llama3.2">
+                        <p class="form-helper">
                             Nom du modèle Ollama à utiliser (ex: llama3.2, mistral, qwen2.5:7b)
                         </p>
                     </div>
-                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm">
-                        <p class="text-blue-900 dark:text-blue-100 font-semibold mb-1">💡 Installation Ollama</p>
-                        <p class="text-blue-700 dark:text-blue-300 text-xs">
-                            Pour installer Ollama : <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">brew install ollama</code> puis <code class="bg-blue-100 dark:bg-blue-900 px-1 rounded">ollama run llama3.2</code>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm">
+                        <p class="text-blue-900 dark:text-blue-100 font-semibold mb-2">💡 Installation Ollama</p>
+                        <p class="text-blue-700 dark:text-blue-300 text-xs leading-relaxed">
+                            Pour installer : <code class="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded font-mono">brew install ollama</code><br>
+                            Puis lancer : <code class="bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded font-mono">ollama run llama3.2</code>
                         </p>
                     </div>
                 </form>
@@ -1959,7 +2330,7 @@ function createAIModule({ rootId, toast, gemini, ollama, modal }) {
     return { render };
 }
 
-function createGuideModule({ rootId, toast }) {
+function createGuideModule({ rootId, toast, dojo, modal }) {
     const root = document.getElementById(rootId);
     if (!root) {
         console.warn(`Racine guide "${rootId}" introuvable.`);
@@ -1970,11 +2341,26 @@ function createGuideModule({ rootId, toast }) {
         root.innerHTML = `
             <div class="space-y-6">
                 <header>
-                    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Playbook</h2>
+                    <h2 class="text-2xl font-bold text-slate-900 dark:text-slate-100">Playbook & Entraînement</h2>
                     <p class="text-slate-600 dark:text-slate-400 text-sm">
-                        Les fondamentaux de la Boîte à Outils : persona IA, glossaire et quick wins de désescalade.
+                        Les fondamentaux + ton simulateur de vol : Dojo d'entraînement pour les egos.
                     </p>
                 </header>
+
+                <div class="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-6">
+                    <div class="flex items-center gap-4">
+                        <div class="text-4xl">🧗</div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">Démarrer le Dojo</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400">
+                                Entraîne-toi sur 5 scénarios réels. Vois ta réponse sous ego, puis l'antidote.
+                            </p>
+                        </div>
+                        <button type="button" class="primary-button" id="dojo-button">
+                            Démarrer →
+                        </button>
+                    </div>
+                </div>
 
                 <section class="dashboard-card space-y-4">
                     <header>
@@ -2061,6 +2447,22 @@ function createGuideModule({ rootId, toast }) {
             )
             .join('');
     }
+
+    // Setup event listeners after render
+    function attachListeners() {
+        const dojoButton = root?.querySelector('#dojo-button');
+        if (dojoButton) {
+            dojoButton.addEventListener('click', () => {
+                if (dojo) dojo.open();
+            });
+        }
+    }
+
+    const originalRender = render;
+    render = function () {
+        originalRender();
+        attachListeners();
+    };
 
     return { render };
 }
@@ -2158,44 +2560,41 @@ function createJournalStore(storageKey, toast) {
 
 function createLocalEncryptor() {
     const subtle = window.crypto?.subtle;
-    const isSecure = Boolean(subtle) && (window.isSecureContext ?? true);
-    if (!isSecure) {
-        const fallbackKey =
-            localStorage.getItem(GEMINI_STORAGE_KEYS.secret) ||
-            (() => {
-                const generated = Array.from({ length: 16 }, () =>
-                    Math.floor(Math.random() * 36).toString(36),
-                ).join('');
-                try {
-                    localStorage.setItem(GEMINI_STORAGE_KEYS.secret, generated);
-                } catch (error) {
-                    console.debug('Impossible de stocker la clé fallback.', error);
-                }
-                return generated;
-            })();
+    const isSecureContext = window.isSecureContext ?? true;
+    const hasSubtle = Boolean(subtle);
 
-        const xor = (text) => {
-            const key = fallbackKey;
-            return Array.from(text)
-                .map((char, index) =>
-                    String.fromCharCode(char.charCodeAt(0) ^ key.charCodeAt(index % key.length)),
-                )
-                .join('');
-        };
+    // 🔴 CRITICAL: Refuse to proceed without proper WebCrypto support
+    if (!hasSubtle || !isSecureContext) {
+        const errorMsg = !hasSubtle
+            ? 'WebCrypto API non disponible - Chiffrement AES-GCM requis'
+            : 'Contexte non sécurisé (HTTPS requis) - Chiffrement impossibilisé';
 
+        SecureLogger.error('SECURITY: ' + errorMsg, {
+            hasSubtle,
+            isSecureContext,
+            isHTTPS: window.location.protocol === 'https:',
+            isLocalhost: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+        });
+
+        // Provide helpful message to user
+        console.warn(
+            '%c⚠️ SÉCURITÉ',
+            'color: #ff6b6b; font-weight: bold; font-size: 14px;',
+            errorMsg
+        );
+
+        if (!isSecureContext && window.location.protocol !== 'file:') {
+            console.warn('💡 Pour développement local: Utilisez http://localhost:8080 au lieu de file://');
+        }
+
+        // Return stub that throws on usage
         return {
-            isFallback: true,
-            async encrypt(plainText) {
-                const cipher = btoa(xor(plainText));
-                return {
-                    cipher,
-                    iv: '',
-                    createdAt: new Date().toISOString(),
-                };
+            isFallback: false,
+            async encrypt() {
+                throw new Error('Chiffrement AES-GCM obligatoire - Contexte non sécurisé');
             },
-            async decrypt(payload) {
-                const decoded = atob(payload.cipher || '');
-                return xor(decoded);
+            async decrypt() {
+                throw new Error('Déchiffrement AES-GCM obligatoire - Contexte non sécurisé');
             },
         };
     }
@@ -2729,11 +3128,4 @@ function formatFullDate(date) {
     });
 }
 
-function escapeHTML(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHTML moved to security.js for centralized security management

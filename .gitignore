@@ -1,6 +1,9 @@
-.DS_Store
-node_modules/
 *.log
 .vscode/
 # Si vous créez un fichier de config pour la clé API
 config.js
+.npm/
+node_modules/
+dist/
+tailwindcss
+.DS_Store

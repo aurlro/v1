@@ -164,11 +164,18 @@ function createNotificationManager() {
      * Met à jour le badge du bouton de notifications
      */
     function updateBadge() {
-        const badge = document.querySelector('.notification-badge');
-        if (badge) {
-            const count = getUnreadCount();
-            badge.textContent = count;
-            badge.style.display = count > 0 ? 'inline-flex' : 'none';
+        const dashboardBadge = document.getElementById('dashboard-notif-count');
+        const headerBadge = document.getElementById('header-notif-count');
+        const count = getUnreadCount();
+
+        if (dashboardBadge) {
+            dashboardBadge.textContent = count;
+            dashboardBadge.style.display = count > 0 ? 'inline-flex' : 'none';
+        }
+
+        if (headerBadge) {
+            headerBadge.textContent = count;
+            headerBadge.style.display = count > 0 ? 'inline-flex' : 'none';
         }
     }
 
